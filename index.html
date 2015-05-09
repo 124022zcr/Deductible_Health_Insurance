@@ -1682,6 +1682,9 @@ div#notebook {
 <div class="text_cell_render border-box-sizing rendered_html">
 <h1 id="changing-the-deductible-in-dutch-basic-health-insurance">Changing the deductible in Dutch basic health insurance</h1>
 <p>Jan Boone, Rudy Douven and Minke Remmerswaal, May 8th, 2015</p>
+<p>This notebook shows how a simple python model can be calibrated to analyze the effects of changing the deductible in a health insurance market. We calibrate the model on aggregate data for the Dutch basic health insurance market and the elasticity as it is found in the <a href="http://www.rand.org/health/projects/hie.html">RAND Health Insurance Experiment</a>.</p>
+<p>This page is for educational purposes only and should not be used for policy analysis.</p>
+<p>The python code and data used here can be found at <a href="https://github.com/janboone/Deductible_Health_Insurance">github</a>.</p>
 </div>
 </div>
 </div>
@@ -1690,15 +1693,15 @@ div#notebook {
 </div>
 <div class="inner_cell">
 <div class="text_cell_render border-box-sizing rendered_html">
-<h1 id="data">Data</h1>
-<p>Below we import the Python packages that are needed to run the model. </p>
+<h1 id="importing-libraries-and-data">Importing libraries and data</h1>
+<p>We use the following python packages to run the model. </p>
 </div>
 </div>
 </div>
 <div class="cell border-box-sizing code_cell rendered">
 <div class="input">
 <div class="prompt input_prompt">
-In&nbsp;[5]:
+In&nbsp;[1]:
 </div>
 <div class="inner_cell">
     <div class="input_area">
@@ -1709,11 +1712,6 @@ In&nbsp;[5]:
 <span class="kn">from</span> <span class="nn">scipy</span> <span class="kn">import</span> <span class="n">optimize</span><span class="p">,</span> <span class="n">arange</span>
 <span class="kn">from</span> <span class="nn">operator</span> <span class="kn">import</span> <span class="n">add</span>
 <span class="kn">from</span> <span class="nn">openopt</span> <span class="kn">import</span> <span class="n">GLP</span>
-
-<span class="c">#import sys</span>
-<span class="c">#sys.path.append(&quot;C:\\Documents and Settings\\mrw\\Local Settings\\Application Data\\Enthought\\Canopy32\\User\\Lib\\site-packages&quot;)</span>
-<span class="c">#print sys.path</span>
-
 <span class="kn">from</span> <span class="nn">mpmath</span> <span class="kn">import</span> <span class="n">findroot</span>
 <span class="o">%</span><span class="k">matplotlib</span> <span class="n">inline</span>
 </pre></div>
@@ -1728,15 +1726,16 @@ In&nbsp;[5]:
 </div>
 <div class="inner_cell">
 <div class="text_cell_render border-box-sizing rendered_html">
-<p>Then we import the data. Our data comes from VWS. It was modified and cleaned for the Dutch risk equalization in 2013. Originally the data comprised health care expenditures in 2013 for all insured Dutch citizens of at least 18 years old. However, <em>our</em> data contains the aggragated health care expenditures. We can distinguish expenditures for different types of health care. For example hospital care, GP, medicine and obstetrics. Further, health care expenditures per insured person are given for 20 categories, so called <em>vignitiles</em> based on average total health care expenditure in ascending order. Each category comprises about 600,000 individuals. </p>
-<p>Data comes from page 13 in <a href="http://www.cpb.nl/sites/default/files/publicaties/bijlagen/bijlage-4-toelichting-op-de-effecten-van-eigen-betalingen-de-zorg.pdf">CPB report</a></p>
+<p>The data that we use, come from page 13 in <a href="http://www.cpb.nl/sites/default/files/publicaties/bijlagen/bijlage-4-toelichting-op-de-effecten-van-eigen-betalingen-de-zorg.pdf">CPB report</a>.</p>
+<p>The data comprise health care expenditures for mandatory basic insurance in 2013 for all insured Dutch citizens of at least 18 years old. These are expenditures that fall under the deductible. For instance, expenditures on primary physicians and maternity care are excluded, as these are excluded from the deductible. Also, there is no deductible for people below 18 years.</p>
+<p>Health care expenditures per insured person are given for 20 categories, so called <em>vignitiles</em> based on average total health care expenditure in ascending order. Each category comprises about 600,000 individuals. </p>
 </div>
 </div>
 </div>
 <div class="cell border-box-sizing code_cell rendered">
 <div class="input">
 <div class="prompt input_prompt">
-In&nbsp;[7]:
+In&nbsp;[2]:
 </div>
 <div class="inner_cell">
     <div class="input_area">
@@ -1752,6 +1751,10 @@ In&nbsp;[7]:
 <span class="n">number_categories</span> <span class="o">=</span> <span class="n">size</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>              <span class="c"># The number of categories in the data</span>
 <span class="n">total</span> <span class="o">=</span> <span class="nb">sum</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
 <span class="n">x</span><span class="o">.</span><span class="n">extend</span><span class="p">([</span><span class="n">total</span><span class="p">])</span>
+
+<span class="n">summed</span> <span class="o">=</span> <span class="n">number_categories</span>                    <span class="c"># Position summed of a vector gives the sum of the previous number_categories elements</span>
+<span class="n">categories</span> <span class="o">=</span> <span class="nb">range</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="n">number_categories</span><span class="p">)</span>       <span class="c"># Gives a list of the form [0,1,...,20]</span>
+
 <span class="n">plt</span><span class="o">.</span><span class="n">clf</span><span class="p">()</span>
 <span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="n">number_categories</span><span class="o">+</span><span class="mi">1</span><span class="p">),</span><span class="n">x</span><span class="p">[:</span><span class="n">number_categories</span><span class="p">],</span><span class="s">&#39;ro&#39;</span><span class="p">)</span>
 <span class="n">plt</span><span class="o">.</span><span class="n">ylabel</span><span class="p">(</span><span class="s">&#39;expenditure&#39;</span><span class="p">)</span>
@@ -1949,150 +1952,89 @@ wYzCmnP4AAAAAElFTkSuQmCC
 </div>
 <div class="inner_cell">
 <div class="text_cell_render border-box-sizing rendered_html">
-<p>The 20 vignitiles represent 20 persons in terms of health care expenditure that we can use for our model (see Figure 1). These 20 <em>individuals</em> represent the whole health care sector (Zvw) for which the deductible applies. This means that health care provided by GP&#39;s and maternity care are excluded. The sum of their expenditures is total expenditure. Other consumer or patient characteristics are not taken into account</p>
-<p>Categories 19 and 20 have average expenditures over €7000 and €25,000 respectively (see Figure 1). There are two reasons why we leave these out of our analysis. First, we want to use a simple model to capture the behaviour of people in the categories. Just by looking at the figure, these two categories appear to be &quot;outliers&quot; compared to the others. Is it clear that these people do not behave in the same way as the other 18 categories. In terms of the model, to capture these two categories well we need to introduce additional parameters. Having two new parameters to be able to capture these two categories is the same as just leaving them out (no degress of freedom gained).</p>
-<p>Secondly, we do not consider co-payments larger than €5,000. Over the relevant range of co-payments that we consider, these two groups will not reduce their expenditure (much) as it is clear that they will spend more than the co-payment anyway. The idea of &quot;donut holes&quot; is a way to affect the expenditures of these groups. The main problem of donut holes is to target them correctly. The model we describe here is not capable of analysing this question.</p>
-<p>By leaving out these two &quot;top&quot; categories from the analysis, two things happen in the model:</p>
-<ul>
-<li>these two top agents do not adjust their behaviour in response to changes in deductibles etc.</li>
-<li>individuals in the other categories do not expect to end up in the top categories (see below).</li>
-</ul>
-<p>NB. Leaving out the two top categories from the analysis, does not mean we do not take their expenditures into account. We simply do not assume a behavioural effect for these two categories. </p>
-<p>For want of better terminology, we denote these &quot;top&quot; categories as &quot;chronic&quot;. This is a misnomer: some agents in these categories are not chronically ill and there are chronically ill in the other categories as well. We do not analyze the (changes in) behaviour of these categories, but we add their expenditure when we look at total expenditure.</p>
+<p>The 20 vignitiles represent 20 persons in terms of health care expenditure that we use for our model. These 20 <em>individuals</em> represent the whole health care sector (Zvw) for which the deductible applies. This means that health care provided by GP&#39;s and maternity care are excluded. In this basic model, other consumer or patient characteristics are not taken into account. </p>
 </div>
 </div>
-</div>
-<div class="cell border-box-sizing code_cell rendered">
-<div class="input">
-<div class="prompt input_prompt">
-In&nbsp;[4]:
-</div>
-<div class="inner_cell">
-    <div class="input_area">
-<div class="highlight"><pre><span class="n">summed</span> <span class="o">=</span> <span class="n">number_categories</span>                    <span class="c"># Position summed of a vector gives the sum of the previous number_categories elements</span>
-<span class="n">categories</span> <span class="o">=</span> <span class="nb">range</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="n">number_categories</span><span class="p">)</span>       <span class="c"># Gives a list of the form [0,1,...,20]</span>
-</pre></div>
-
-</div>
-</div>
-</div>
-
 </div>
 <div class="cell border-box-sizing text_cell rendered">
 <div class="prompt input_prompt">
 </div>
 <div class="inner_cell">
 <div class="text_cell_render border-box-sizing rendered_html">
-<h1 id="elasticities">Elasticities</h1>
-<p>To determine the parameters of a consumer&#39;s utility function, <a href="http://pubs.aeaweb.org/doi/pdfplus/10.1257/jep.27.1.197">Aron-Dine et al. 2013</a></p>
-<p>We work with utility function $u(z)=\alpha z^{\gamma}$. Let $p$ denote the co-payment that the agent pays out-of-pocket of expenditure $z$. Then the agent solves</p>
-<p>$$
+<h1 id="elasticity">Elasticity</h1>
+<p>We work with a constant elasticity utility function $u(z)=\alpha z^{\gamma}$, where $z$ denotes the health care expenditure. 
+Note that defining utility on expenditure (instead of quantity) is rather unusual. The problem is that we do not have data on the quantity of care consumed and hence this is the best that we can do. </p>
+<p>Let $p \in [0,1]$ denote the co-payment that the agent pays out-of-pocket of expenditure $z$. That is, a fraction $p$ of expenditure $z$ is paid by the agent out-of-pocket.</p>
+<p>The agent solves
+$$
 \max_z u(z) - pz
+$$
+Taking the first order condition, we can solve for $z$ as
+$$
+z(p) = \left(\frac{p}{\alpha \gamma} \right)^{\gamma-1}
+$$
+The elasticity w.r.t. $p$ can be defined as
+$$
+E = \frac{d\ln z}{d\ln p} = \gamma -1
+$$</p>
+<p>Based on the RAND experiment, we calibrate $E = -0.2$ and hence $\gamma = 0.8$. This is based on a number of assumptions. First, <a href="http://pubs.aeaweb.org/doi/pdfplus/10.1257/jep.27.1.197">Aron-Dine et al. 2013</a> explain that the elasticity of $-0.2$ is based on subjects in the experiment that are bounded away from their max. expenditure. This is indeed what the function $z(p)$ measures. Second, the subjects in the experiment that had expenditures in excess of their max. expenditure, may have a different value of $\gamma$, while we assume that $\gamma$ is the same for all subjects. Finally, $-0.2$ is actually based on an arc-elasticity defined as
+$$
+E_{arc} = \frac{\frac{z_2-z_1}{(z_1+z_2)/2}}{\frac{p_2-p_1}{(p_1+p_2)/2}}
+$$
+and we approximate this using the standard elasticity $E$. The advantage of our approach is that with the utility function that we use, the standard elasticity is constant (i.e. does not depend on $p$) and hence is easy to calibrate.</p>
+</div>
+</div>
+</div>
+<div class="cell border-box-sizing text_cell rendered">
+<div class="prompt input_prompt">
+</div>
+<div class="inner_cell">
+<div class="text_cell_render border-box-sizing rendered_html">
+<h1 id="deductible">Deductible</h1>
+<p>The Dutch data that we use are from 2013 when there was a deductible equal to 350 euro. Hence, agents faced a payment function $t(z)$ given by
+$$
+t(z) = \begin{cases}
+z &amp; \text{ if } z \leq 350 \\
+350 &amp; \text{ if } z &gt; 350
+\end{cases}
+$$
+And an agent solves
+$$
+\max_z u(z) - t(z)
+$$</p>
+<p>An agent who knows that he will spend more than 350, faces a price equal to zero while $u'(z)&gt;0$ for all $z \geq 0$. Hence, he would like to spend $z = +\infty$. To keep the optimization well specified, we make the following assumptions.</p>
+<p>First, each agent knows her category $i$ (out of the 20 categories above) perfectly at the start of the period. Second, each category $i$ is characterized by a max. expenditure $\bar z_i$. Intuitively, if you stay healthy the whole year, you cannot spend 10.000 euro on health care. Although there is discretion at the margin, it is not possible to generate any expenditure independently from health status.</p>
+<p>Hence, our model has 20 agent types and a type $i$ is characterised by the max. expenditure $\bar z_i$. We will calibrate $\bar z_i$. Admittedly, assuming that each type perfectly knows his type is extreme. However, it seems a good starting point.</p>
+<p>An alternative approach here can be the following. Although the expenditures on health are fully reimbursed (for $z \geq 350$) there are other costs involved in visiting a provider. One has to travel to the physician, take a day off from work, undergoing examination/treatment generates dis-utility etc. Such considerations can also stop people from spending $z =+\infty$.</p>
+<p>Agent $i$&#39;s optimization problem now becomes
+$$
+\max_{z \leq \bar z_i} u(z) - t(z)
+$$</p>
+<p>We use the following specification for $z_i$:
+$$
+z_i = ???
 $$</p>
 </div>
 </div>
 </div>
-<div class="cell border-box-sizing text_cell rendered">
-<div class="prompt input_prompt">
-</div>
-<div class="inner_cell">
-<div class="text_cell_render border-box-sizing rendered_html">
-<h1 id="model">Model</h1>
-<p>This section describes in more detail the model that we use for the calibration. Let $t(x)$ denote the amount of money that the agent pays if her health care expenditures equal $x$. Hence, with a deductible of 350, $t$ equals
-\begin{equation*}
-t(x) = \begin{cases}
-x &amp; \text{ if } x \leq 350 \\
-350 &amp; \text{ if } x &gt; 350
-\end{cases}
-\end{equation*}</p>
-<p>We assume that patient who ends up in category $i$ has costs $y_{i}$
-that are beyond her control. If you break a leg, you are taken to hospital
-with an ambulance and &quot;plastered up&quot;. There is no discretion on the patient&#39;s side.</p>
-<p>The idea of $y_{i}$ is that it cannot be affected by demand side incentives.
-This does not mean that $y_i$ is necessarily efficient (there can be
-supply-induced demand). It only means that increasing co-payments, deductibles etc.
-will not affect $y_{i}$. We call this the exogenous part of health care expenditure for the patient.</p>
-<p>The discretionary or endogenous part of health care consumption: $z_{i} \in \lbrack 0,\overline{z_{{i}}}]$ in category $i$. $z_{i}$ is
-health care that patients can choose to consume and will therefore be
-affected by co-payments and cost sharing schemes. The fact that $z_{i}$ is
-chosen by the patient does not mean that it is inefficient. Even if the patient has to pay $z_{i}$ herself, she
-may still decide to have $z_{i}&gt;0$.</p>
-<p>With $\overline{z_{{i}}}=0$, we have a model without behavioral effects.
-All expenditure is beyond the patient&#39;s control and demand side incentives
-will not affect health care expenditure in category $i$. It is easy to get a perfect calibration in this case: the actual expenditure of patient $i$ equals the exogenous expenditure $y_i$. Hence there is a perfect match between the model and our data in this case. The downside of this approach is that the dynamic part of the calibration is completely lost. As expenditure is completely exogenous for the patient, changes in deductible have no effect on agents&#39; expenditure and we cannot capture the findings by Van Vliet at all.</p>
-<p>With $\overline{z_{{i}}}&gt;0$, the patient has some discretion over health care consumption and we need to
-specify her utility function. We assume that a patient in category $i$ with exogenous expenditure $y_i$ solves the following optimization problem
-\begin{equation*}
-\max\limits_{z\in \lbrack 0,\overline{z}]}(\alpha z^{\gamma}-t(y_{i}+z))
-\end{equation*}
-where $\alpha,\gamma &gt;0$ are parameters that capture the relative value of &quot;health&quot; versus money that
-can be spent on other goods (like cars, holidays etc.). These parameters are calibrated.</p>
-<p>As $z$ is always valuable at the margin (with this utility function) and
-we want to allow for the case where at the margin $z$ is free (e.g. because
-the deductible is already &quot;filled&quot;), we need the upperbound $\overline{z}$
-to avoid $z=+\infty $.</p>
-<p>The upperbound also makes sense intuitively: a patient cannot simply decide
-to undergo operations for one million euros. Depending on the disease there
-is a max. amount of money that the patient can make physicians to spend on
-her. Presumably, as $y_{i}$ is higher, the patient has more discretion and $\overline{z}$ increases. This is indeed the assumption that we make. Hence, we have max. amount that varies with $i$. In particular, we assume that 
-\begin{equation*}
-\overline{z}_i = \bar{z}y_i^2
-\end{equation*}
-where we calibrate $\bar{z}$. </p>
-</div>
-</div>
-</div>
-<div class="cell border-box-sizing text_cell rendered">
-<div class="prompt input_prompt">
-</div>
-<div class="inner_cell">
-<div class="text_cell_render border-box-sizing rendered_html">
-<p>A simple distribution for the exogenous expenditure $y_i$ is the exponential distribution. This distribution is governed by one parameter $\zeta$:
-\begin{equation*}
-f(y) = \zeta e^{-\zeta y}
-\end{equation*}
-We need to identify the 1/20-th parts of this distribution. We do this as follows.</p>
-<p>First, because of the indexing of arrays in python, we use $y_0,...,y_{17}$ (recall the two top categories are chronic which we leave out of the analysis). Let $y_0$ denote the point where $F(y_0)=1/20∗1/2$: mid-point of the histogram bar containing the lowest 5 percent of the distribution. Hence, we have $F(y_i)=i/20+1/20∗1/2$. Or equivalently,</p>
-<p>$y_i=−1/\zeta \ln(1−i/20 −1/2 1/20)$
-for $i=0,1,...,17$.</p>
-<p>Further, we specify the function $t$ for our calibration. In the calibration, we only use changes in the deductible.</p>
-</div>
-</div>
-</div>
 <div class="cell border-box-sizing code_cell rendered">
 <div class="input">
 <div class="prompt input_prompt">
-In&nbsp;[15]:
+In&nbsp;[87]:
 </div>
 <div class="inner_cell">
     <div class="input_area">
-<div class="highlight"><pre><span class="k">def</span> <span class="nf">y</span><span class="p">(</span><span class="n">zeta</span><span class="p">):</span>
-   <span class="n">y</span> <span class="o">=</span> <span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="o">/</span><span class="n">zeta</span><span class="o">*</span><span class="n">log</span><span class="p">(</span><span class="mi">1</span><span class="o">-</span><span class="n">i</span><span class="o">/</span><span class="n">number_categories</span><span class="o">-</span><span class="mi">1</span><span class="o">/</span><span class="mi">2</span><span class="o">*</span><span class="mi">1</span><span class="o">/</span><span class="n">number_categories</span><span class="p">)</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">categories_non_chronic</span><span class="p">]</span> <span class="c"># distribution is defined for all categories, but we are only interested in the values of y for the non_chronic categories</span>
-   <span class="k">return</span> <span class="n">y</span>
-
-<span class="k">def</span> <span class="nf">t</span><span class="p">(</span><span class="n">x</span><span class="p">,</span><span class="n">deduct</span><span class="p">):</span>
-   <span class="k">if</span> <span class="n">x</span> <span class="o">&lt;</span> <span class="n">deduct</span><span class="p">:</span>
-     <span class="n">t</span> <span class="o">=</span> <span class="n">x</span>
+<div class="highlight"><pre><span class="k">def</span> <span class="nf">t</span><span class="p">(</span><span class="n">z</span><span class="p">,</span><span class="n">deduct</span><span class="p">):</span>
+   <span class="k">if</span> <span class="n">z</span> <span class="o">&lt;</span> <span class="n">deduct</span><span class="p">:</span>
+     <span class="n">t</span> <span class="o">=</span> <span class="n">z</span>
    <span class="k">else</span><span class="p">:</span> 
      <span class="n">t</span> <span class="o">=</span> <span class="n">deduct</span>
    <span class="k">return</span> <span class="n">t</span>
 
-<span class="n">Dictionary_of_functions</span> <span class="o">=</span> <span class="p">{}</span>        
-
-<span class="n">values_t_perc_copayrate</span> <span class="o">=</span> <span class="p">[</span><span class="mf">0.25</span><span class="p">,</span><span class="mf">0.50</span><span class="p">]</span>
-<span class="n">values_t_perc_copaymax</span> <span class="o">=</span> <span class="p">[</span><span class="mi">405</span><span class="p">,</span><span class="mi">505</span><span class="p">]</span> 
-
-<span class="k">def</span> <span class="nf">t_perc_copayment</span><span class="p">(</span><span class="n">x</span><span class="p">,</span><span class="n">perc_copayrate</span><span class="p">,</span> <span class="n">perc_copaymax</span><span class="p">):</span>
-   <span class="k">if</span> <span class="n">x</span> <span class="o">&lt;</span> <span class="n">perc_copaymax</span><span class="o">/</span><span class="n">perc_copayrate</span><span class="p">:</span>
-     <span class="n">t</span> <span class="o">=</span> <span class="n">perc_copayrate</span><span class="o">*</span><span class="n">x</span>
-   <span class="k">else</span><span class="p">:</span> 
-     <span class="n">t</span> <span class="o">=</span> <span class="n">perc_copaymax</span>
-   <span class="k">return</span> <span class="n">t</span>
-
-<span class="k">for</span> <span class="n">perc_copaymax</span> <span class="ow">in</span> <span class="n">values_t_perc_copaymax</span><span class="p">:</span> 
-    <span class="k">for</span> <span class="n">perc_copayrate</span> <span class="ow">in</span> <span class="n">values_t_perc_copayrate</span><span class="p">:</span>
-        <span class="n">naam_perc_copayment</span> <span class="o">=</span> <span class="s">&#39;percentual copayment &#39;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="n">perc_copayrate</span><span class="p">)</span><span class="o">+</span><span class="s">&#39; &#39;</span><span class="o">+</span><span class="nb">str</span><span class="p">(</span><span class="n">perc_copaymax</span><span class="p">)</span> 
-        <span class="n">Dictionary_of_functions</span><span class="p">[</span><span class="n">naam_perc_copayment</span><span class="p">]</span><span class="o">=</span> <span class="k">lambda</span> <span class="n">x</span><span class="p">,</span> <span class="n">perc_copayrate</span> <span class="o">=</span> <span class="n">perc_copayrate</span><span class="p">,</span> <span class="n">perc_copaymax</span> <span class="o">=</span> <span class="n">perc_copaymax</span><span class="p">:</span> <span class="n">t_perc_copayment</span><span class="p">(</span><span class="n">x</span><span class="p">,</span><span class="n">perc_copayrate</span><span class="p">,</span><span class="n">perc_copaymax</span><span class="p">)</span>
+        
+<span class="k">def</span> <span class="nf">bar_z</span><span class="p">(</span><span class="n">a</span><span class="p">,</span><span class="n">b</span><span class="p">,</span><span class="n">c</span><span class="p">):</span>
+   <span class="n">z</span> <span class="o">=</span> <span class="p">[</span><span class="n">a</span><span class="o">*</span><span class="n">i</span><span class="o">**</span><span class="mi">2</span><span class="o">+</span><span class="n">b</span><span class="o">*</span><span class="n">i</span><span class="o">+</span><span class="n">c</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">categories</span><span class="p">]</span> 
+   <span class="k">return</span> <span class="n">z</span>
 </pre></div>
 
 </div>
@@ -2105,36 +2047,25 @@ In&nbsp;[15]:
 </div>
 <div class="inner_cell">
 <div class="text_cell_render border-box-sizing rendered_html">
-<p>Next, we specify our optimization of health consumption. When a consumer of initial category $i$ chooses $z_i$, she does not know yet what the her exogenous consumption is going to be. Hence, she optimizes with respect to expected $t$. If she ends up with $y_j$ in excess of the deductible, endogenous consumption $z$ is free. If she ends up with $y_j$ below the deductible, consumption $z$ for her is costly at the margin. She takes the expectation over different categories $j$ with the probabilities $P_{first},P_{second},P_{third}$ as discussed above.</p>
-<p>We assume that $\bar z_i =\bar z y_i^2$ is determined by her initial category $i$. It turns out that $y_i$ does not vary a lot with $i$ so this assumption does not matter much.</p>
-<p>Again using the fact that $y_i$ turns out be relatively flat (compared to $z_i$), the ex post 5% spending category that an agent ends up in is determined by $z_i$. The expected expenditure of this category equals $z_i$ plus the expectation over $y_i$. That is, all agents in initial category $i$, choose the same $x_i$ but end up with different exogenous $y_j$. As the variation over $y_j$ is quite small, all these agents end up in the same ex post vignitile. The average expenditure $x_i$ in this category then equals $z_i$ plus expected $y_j$.</p>
+<h1 id="health-care-consumption">Health care consumption</h1>
 </div>
 </div>
 </div>
 <div class="cell border-box-sizing code_cell rendered">
 <div class="input">
 <div class="prompt input_prompt">
-In&nbsp;[7]:
+In&nbsp;[88]:
 </div>
 <div class="inner_cell">
     <div class="input_area">
-<div class="highlight"><pre><span class="k">def</span> <span class="nf">health_consumption</span><span class="p">(</span><span class="n">i</span><span class="p">,</span><span class="n">z_bar</span><span class="p">,</span><span class="n">alpha</span><span class="p">,</span><span class="n">gamma</span><span class="o">=</span><span class="mf">0.8</span><span class="p">):</span>
-    <span class="k">def</span> <span class="nf">expected_t</span><span class="p">(</span><span class="n">i</span><span class="p">,</span><span class="n">x</span><span class="p">):</span>
-        <span class="n">som</span> <span class="o">=</span> <span class="mi">0</span>
-        <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="n">categories_non_chronic</span><span class="p">:</span>
-            <span class="n">som</span> <span class="o">+=</span> <span class="n">P</span><span class="p">(</span><span class="n">i</span><span class="p">,</span> <span class="n">P_first</span><span class="p">,</span> <span class="n">P_second</span><span class="p">)[</span><span class="n">j</span><span class="p">]</span><span class="o">*</span><span class="n">t</span><span class="p">(</span><span class="n">y</span><span class="p">[</span><span class="n">j</span><span class="p">]</span><span class="o">+</span><span class="n">x</span><span class="p">,</span><span class="n">deduct</span><span class="p">)</span>
-        <span class="k">return</span> <span class="n">som</span> 
-    <span class="n">cons</span> <span class="o">=</span> <span class="n">optimize</span><span class="o">.</span><span class="n">brute</span><span class="p">(</span><span class="k">lambda</span> <span class="n">z</span><span class="p">:</span> <span class="o">-</span><span class="p">(</span><span class="n">alpha</span><span class="o">*</span><span class="n">z</span><span class="o">**</span><span class="n">gamma</span><span class="o">-</span><span class="n">expected_t</span><span class="p">(</span><span class="n">i</span><span class="p">,</span><span class="n">z</span><span class="p">)),</span> <span class="p">((</span><span class="mi">0</span><span class="p">,</span><span class="n">z_bar</span><span class="o">*</span><span class="n">y</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">**</span><span class="mf">2.0</span><span class="p">),),</span> <span class="n">finish</span> <span class="o">=</span> <span class="bp">None</span><span class="p">)</span> 
-                                                  <span class="c"># This is the routine that finds the z which maximizes patient&#39;s expected utility</span>
-    <span class="n">expected_y</span> <span class="o">=</span> <span class="n">inner</span><span class="p">(</span><span class="n">array</span><span class="p">(</span><span class="n">y</span><span class="p">),</span><span class="n">array</span><span class="p">(</span><span class="n">P</span><span class="p">(</span><span class="n">i</span><span class="p">,</span><span class="n">P_first</span><span class="p">,</span><span class="n">P_second</span><span class="p">)))</span>
-    <span class="k">return</span> <span class="n">cons</span><span class="o">+</span><span class="n">expected_y</span> 
+<div class="highlight"><pre><span class="k">def</span> <span class="nf">health_consumption</span><span class="p">(</span><span class="n">i</span><span class="p">,</span><span class="n">z_bar</span><span class="p">,</span><span class="n">alpha</span><span class="p">,</span><span class="n">t</span><span class="p">,</span><span class="n">gamma</span><span class="o">=</span><span class="mf">0.8</span><span class="p">):</span>
+    <span class="n">cons</span> <span class="o">=</span> <span class="n">optimize</span><span class="o">.</span><span class="n">brute</span><span class="p">(</span><span class="k">lambda</span> <span class="n">z</span><span class="p">:</span> <span class="o">-</span><span class="p">(</span><span class="n">alpha</span><span class="o">*</span><span class="n">z</span><span class="o">**</span><span class="n">gamma</span><span class="o">-</span><span class="n">t</span><span class="p">(</span><span class="n">z</span><span class="p">)),</span> <span class="p">((</span><span class="mi">0</span><span class="p">,</span><span class="n">z_bar</span><span class="p">[</span><span class="n">i</span><span class="p">]),),</span> <span class="n">finish</span> <span class="o">=</span> <span class="bp">None</span><span class="p">)</span> 
+                                                  <span class="c"># This is the routine that finds the z which maximizes patient&#39;s utility</span>
+    <span class="k">return</span> <span class="n">cons</span>
 
-<span class="k">def</span> <span class="nf">vector_expenditures</span><span class="p">(</span><span class="n">z_bar</span><span class="p">,</span><span class="n">P_first</span><span class="p">,</span><span class="n">P_second</span><span class="p">,</span><span class="n">alpha</span><span class="p">,</span><span class="n">gamma</span><span class="p">,</span><span class="n">zeta</span><span class="p">,</span><span class="n">deduct</span><span class="p">):</span> 
-                                                  <span class="c"># Creates the vector of expenditures predicted by the model</span>
-    <span class="n">vy</span> <span class="o">=</span> <span class="n">y</span><span class="p">(</span><span class="n">zeta</span><span class="p">)</span>                                  <span class="c"># vy is vector of y_i for the non_chronic categories</span>
-    <span class="n">y_plus_z</span> <span class="o">=</span> <span class="p">[</span><span class="n">health_consumption</span><span class="p">(</span><span class="n">i</span><span class="p">,</span><span class="n">vy</span><span class="p">,</span><span class="n">z_bar</span><span class="p">,</span><span class="n">alpha</span><span class="p">,</span><span class="n">gamma</span><span class="p">,</span><span class="n">P_first</span><span class="p">,</span><span class="n">P_second</span><span class="p">,</span><span class="n">deduct</span><span class="p">)</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">categories_non_chronic</span><span class="p">]</span>
-    <span class="n">y_plus_z</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">x_chronic</span><span class="p">)</span> <span class="c"># y_plus_z includes chronic categories</span>
-    <span class="k">return</span> <span class="n">y_plus_z</span>
+<span class="k">def</span> <span class="nf">vector_expenditures</span><span class="p">(</span><span class="n">z_bar</span><span class="p">,</span><span class="n">alpha</span><span class="p">,</span><span class="n">t</span><span class="p">,</span><span class="n">gamma</span><span class="o">=</span><span class="mf">0.8</span><span class="p">):</span> 
+    <span class="n">z</span> <span class="o">=</span> <span class="p">[</span><span class="n">health_consumption</span><span class="p">(</span><span class="n">i</span><span class="p">,</span><span class="n">z_bar</span><span class="p">,</span><span class="n">alpha</span><span class="p">,</span><span class="n">t</span><span class="p">)</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">categories</span><span class="p">]</span>
+    <span class="k">return</span> <span class="n">z</span>
 </pre></div>
 
 </div>
@@ -2155,20 +2086,15 @@ In&nbsp;[7]:
 <div class="cell border-box-sizing code_cell rendered">
 <div class="input">
 <div class="prompt input_prompt">
-In&nbsp;[8]:
+In&nbsp;[89]:
 </div>
 <div class="inner_cell">
     <div class="input_area">
-<div class="highlight"><pre><span class="n">weight_VWS_vs_VanVliet</span> <span class="o">=</span> <span class="mf">1.0</span>
-<span class="n">base_deductible</span> <span class="o">=</span> <span class="mf">350.0</span>
-<span class="k">def</span> <span class="nf">criterion</span><span class="p">(</span><span class="n">par</span><span class="p">):</span>         <span class="c"># Vector par = z_bar,P_first,P_second, alpha, gamma, zeta, x_350</span>
-    <span class="n">predicted_cons</span> <span class="o">=</span> <span class="n">vector_expenditures</span><span class="p">(</span><span class="n">par</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span><span class="n">par</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span><span class="n">par</span><span class="p">[</span><span class="mi">2</span><span class="p">],</span><span class="n">par</span><span class="p">[</span><span class="mi">3</span><span class="p">],</span><span class="n">par</span><span class="p">[</span><span class="mi">4</span><span class="p">],</span><span class="n">par</span><span class="p">[</span><span class="mi">5</span><span class="p">],</span><span class="n">base_deductible</span><span class="p">)</span>
-    <span class="n">difference</span> <span class="o">=</span> <span class="nb">map</span><span class="p">(</span><span class="n">sub</span><span class="p">,</span> <span class="n">predicted_cons</span><span class="p">[:</span><span class="n">number_categories_non_chronic</span><span class="p">],</span><span class="n">x</span><span class="p">[:</span><span class="n">number_categories_non_chronic</span><span class="p">])</span> <span class="c">### predicted cons includes chronic categories???</span>
-    <span class="n">sum_difference_VanVliet</span> <span class="o">=</span> <span class="mf">0.0</span>
-    <span class="k">for</span> <span class="n">deductible</span> <span class="ow">in</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">costs_to_be_calibrated</span><span class="p">):</span>
-        <span class="n">sum_difference_VanVliet</span> <span class="o">+=</span> <span class="p">(</span><span class="nb">sum</span><span class="p">(</span><span class="n">vector_expenditures</span><span class="p">(</span><span class="n">par</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span><span class="n">par</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span><span class="n">par</span><span class="p">[</span><span class="mi">2</span><span class="p">],</span><span class="n">par</span><span class="p">[</span><span class="mi">3</span><span class="p">],</span><span class="n">par</span><span class="p">[</span><span class="mi">4</span><span class="p">],</span><span class="n">par</span><span class="p">[</span><span class="mi">5</span><span class="p">],</span><span class="n">deductible</span><span class="p">))</span><span class="o">-</span><span class="n">par</span><span class="p">[</span><span class="mi">6</span><span class="p">]</span><span class="o">*</span><span class="n">costs_to_be_calibrated</span><span class="p">[</span><span class="n">deductible</span><span class="p">])</span><span class="o">**</span><span class="mi">2</span>
-    <span class="n">criterion</span> <span class="o">=</span> <span class="n">weight_VWS_vs_VanVliet</span><span class="o">*</span><span class="nb">sum</span><span class="p">(</span><span class="n">array</span><span class="p">(</span><span class="n">difference</span><span class="p">)</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span><span class="o">+</span><span class="n">sum_difference_VanVliet</span>
-    <span class="k">return</span> <span class="n">criterion</span>
+<div class="highlight"><pre><span class="n">base_deductible</span> <span class="o">=</span> <span class="mf">350.0</span>
+<span class="k">def</span> <span class="nf">criterion</span><span class="p">(</span><span class="n">par</span><span class="p">):</span>         <span class="c"># Vector par = alpha, a, b,c</span>
+    <span class="n">predicted_cons</span> <span class="o">=</span> <span class="n">vector_expenditures</span><span class="p">(</span><span class="n">bar_z</span><span class="p">(</span><span class="n">par</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span><span class="n">par</span><span class="p">[</span><span class="mi">2</span><span class="p">],</span><span class="n">par</span><span class="p">[</span><span class="mi">3</span><span class="p">]),</span><span class="n">par</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span><span class="k">lambda</span> <span class="n">x</span><span class="p">,</span> <span class="n">deduct</span> <span class="o">=</span> <span class="n">base_deductible</span><span class="p">:</span> <span class="n">t</span><span class="p">(</span><span class="n">x</span><span class="p">,</span><span class="n">deduct</span><span class="p">))</span>
+    <span class="n">difference</span> <span class="o">=</span> <span class="nb">map</span><span class="p">(</span><span class="n">sub</span><span class="p">,</span> <span class="n">predicted_cons</span><span class="p">[:</span><span class="n">number_categories</span><span class="p">],</span><span class="n">x</span><span class="p">[:</span><span class="n">number_categories</span><span class="p">])</span> <span class="c">### </span>
+    <span class="k">return</span> <span class="nb">sum</span><span class="p">(</span><span class="n">array</span><span class="p">(</span><span class="n">difference</span><span class="p">)</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span>
 </pre></div>
 
 </div>
@@ -2188,12 +2114,12 @@ In&nbsp;[8]:
 <div class="cell border-box-sizing code_cell rendered">
 <div class="input">
 <div class="prompt input_prompt">
-In&nbsp;[9]:
+In&nbsp;[95]:
 </div>
 <div class="inner_cell">
     <div class="input_area">
 <div class="highlight"><pre><span class="n">f</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">criterion</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
-<span class="n">p</span> <span class="o">=</span> <span class="n">GLP</span><span class="p">(</span><span class="n">f</span><span class="p">,</span> <span class="n">lb</span> <span class="o">=</span> <span class="p">[</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.5</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span><span class="mf">0.8</span><span class="p">],</span>  <span class="n">ub</span> <span class="o">=</span> <span class="p">[</span><span class="mf">0.2</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">,</span> <span class="mf">0.3</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">,</span> <span class="mf">0.9</span><span class="p">,</span> <span class="mf">0.1</span><span class="p">,</span><span class="mf">0.9</span><span class="p">],</span>  <span class="n">maxIter</span> <span class="o">=</span> <span class="mf">1e3</span><span class="p">,</span>  <span class="n">maxFunEvals</span> <span class="o">=</span> <span class="mf">1e5</span><span class="p">)</span> <span class="c">#,  maxTime = 20,  maxCPUTime = 20)</span>
+<span class="n">p</span> <span class="o">=</span> <span class="n">GLP</span><span class="p">(</span><span class="n">f</span><span class="p">,</span> <span class="n">lb</span> <span class="o">=</span> <span class="p">[</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">],</span>  <span class="n">ub</span> <span class="o">=</span> <span class="p">[</span><span class="mf">10.0</span><span class="p">,</span> <span class="mf">100.0</span><span class="p">,</span> <span class="mf">100.0</span><span class="p">,</span> <span class="mf">10.0</span><span class="p">],</span>  <span class="n">maxIter</span> <span class="o">=</span> <span class="mf">1e3</span><span class="p">,</span>  <span class="n">maxFunEvals</span> <span class="o">=</span> <span class="mf">1e5</span><span class="p">)</span> <span class="c">#,  maxTime = 20,  maxCPUTime = 20)</span>
 <span class="n">r</span> <span class="o">=</span> <span class="n">p</span><span class="o">.</span><span class="n">solve</span><span class="p">(</span><span class="s">&#39;de&#39;</span><span class="p">,</span> <span class="n">plot</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
 <span class="n">x_opt</span><span class="p">,</span>  <span class="n">f_opt</span> <span class="o">=</span> <span class="n">r</span><span class="o">.</span><span class="n">xf</span><span class="p">,</span>  <span class="n">r</span><span class="o">.</span><span class="n">ff</span>
 <span class="k">print</span> <span class="n">x_opt</span><span class="p">,</span> <span class="n">f_opt</span>
@@ -2213,19 +2139,112 @@ In&nbsp;[9]:
 -----------------------------------------------------
 solver: de   problem: unnamed
  iter    objFunVal   
-    0  9.400e+08 
-   10  7.388e+07 
-   20  4.493e+07 
-   30  3.815e+07 
-   40  3.746e+07 
-   50  3.665e+07 
-   60  3.665e+07 
-   65  3.665e+07 
-istop: 11(Non-Success Number &gt; maxNonSuccess = 15)
-Solver:   Time Elapsed = 5126.17 	CPU Time Elapsed = 5089.423994
-objFunValue: 36648122 (feasible, MaxResidual = 0)
-[ 0.19005851  0.94043497  0.17187947  0.94870232  0.98352191  0.01679579
-  0.89019749] 36648122.4215
+    0  7.643e+08 
+   10  2.217e+08 
+   20  2.217e+08 
+   30  2.072e+08 
+   40  2.072e+08 
+   50  2.001e+08 
+   60  1.931e+08 
+   70  1.869e+08 
+   80  1.825e+08 
+   90  1.808e+08 
+  100  1.783e+08 
+  110  1.735e+08 
+  120  1.700e+08 
+  130  1.667e+08 
+  140  1.660e+08 
+  150  1.649e+08 
+  160  1.632e+08 
+  170  1.609e+08 
+  180  1.600e+08 
+  190  1.578e+08 
+  200  1.572e+08 
+  210  1.552e+08 
+  220  1.528e+08 
+  230  1.505e+08 
+  240  1.491e+08 
+  250  1.474e+08 
+  260  1.461e+08 
+  270  1.456e+08 
+  280  1.450e+08 
+  290  1.445e+08 
+  300  1.443e+08 
+  310  1.440e+08 
+  320  1.437e+08 
+  330  1.435e+08 
+  340  1.432e+08 
+  350  1.429e+08 
+  360  1.426e+08 
+  370  1.425e+08 
+  380  1.422e+08 
+  390  1.418e+08 
+  400  1.417e+08 
+  410  1.416e+08 
+  420  1.411e+08 
+  430  1.408e+08 
+  440  1.401e+08 
+  450  1.396e+08 
+  460  1.389e+08 
+  470  1.385e+08 
+  480  1.382e+08 
+  490  1.379e+08 
+  500  1.375e+08 
+  510  1.365e+08 
+  520  1.351e+08 
+  530  1.321e+08 
+  540  1.294e+08 
+  550  1.280e+08 
+  560  1.267e+08 
+  570  1.255e+08 
+  580  1.246e+08 
+  590  1.242e+08 
+  600  1.240e+08 
+  610  1.238e+08 
+  620  1.237e+08 
+  630  1.236e+08 
+  640  1.235e+08 
+  650  1.235e+08 
+  660  1.234e+08 
+  670  1.234e+08 
+  680  1.234e+08 
+  690  1.233e+08 
+  700  1.233e+08 
+  710  1.232e+08 
+  720  1.232e+08 
+  730  1.231e+08 
+  740  1.231e+08 
+  750  1.230e+08 
+  760  1.229e+08 
+  770  1.228e+08 
+  780  1.228e+08 
+  790  1.227e+08 
+  800  1.226e+08 
+  810  1.224e+08 
+  820  1.223e+08 
+  830  1.221e+08 
+  840  1.219e+08 
+  850  1.217e+08 
+  860  1.216e+08 
+  870  1.213e+08 
+  880  1.211e+08 
+  890  1.210e+08 
+  900  1.209e+08 
+  910  1.209e+08 
+  920  1.209e+08 
+  930  1.208e+08 
+  940  1.208e+08 
+  950  1.208e+08 
+  960  1.208e+08 
+  970  1.207e+08 
+  980  1.207e+08 
+  990  1.207e+08 
+ 1000  1.206e+08 
+ 1001  1.206e+08 
+istop: -7(Max Iter has been reached)
+Solver:   Time Elapsed = 256.51 	CPU Time Elapsed = 256.756994
+objFunValue: 1.2063765e+08 (feasible, MaxResidual = 3.79243e-07)
+[   0.13814687   47.81347668  100.00000038   10.0000003 ] 120637652.95
 
 </pre>
 </div>
@@ -2238,1150 +2257,14 @@ objFunValue: 36648122 (feasible, MaxResidual = 0)
 <div class="cell border-box-sizing code_cell rendered">
 <div class="input">
 <div class="prompt input_prompt">
-In&nbsp;[6]:
+In&nbsp;[96]:
 </div>
 <div class="inner_cell">
     <div class="input_area">
-<div class="highlight"><pre><span class="c"># [ 0.16289025  0.83281495  0.24888343  0.89888634  0.99305105  0.01785629 0.885721  ] 33472263.3922</span>
-<span class="c"># [ 0.19005851  0.94043497  0.17187947  0.94870232  0.98352191  0.01679579 0.89019749] 36648122.4215</span>
-<span class="n">x_opt</span> <span class="o">=</span> <span class="p">[</span> <span class="mf">0.19005851</span><span class="p">,</span>  <span class="mf">0.94043497</span><span class="p">,</span>  <span class="mf">0.17187947</span><span class="p">,</span>  <span class="mf">0.94870232</span><span class="p">,</span>  <span class="mf">0.98352191</span><span class="p">,</span>  <span class="mf">0.01679579</span><span class="p">,</span> <span class="mf">0.89019749</span><span class="p">]</span>
-<span class="n">z_bar</span><span class="p">,</span><span class="n">P_first</span><span class="p">,</span><span class="n">P_second</span><span class="p">,</span> <span class="n">alpha</span><span class="p">,</span> <span class="n">gamma</span><span class="p">,</span> <span class="n">zeta</span><span class="p">,</span> <span class="n">x_350</span> <span class="o">=</span> <span class="n">x_opt</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">x_opt</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">x_opt</span><span class="p">[</span><span class="mi">2</span><span class="p">],</span> <span class="n">x_opt</span><span class="p">[</span><span class="mi">3</span><span class="p">],</span> <span class="n">x_opt</span><span class="p">[</span><span class="mi">4</span><span class="p">],</span> <span class="n">x_opt</span><span class="p">[</span><span class="mi">5</span><span class="p">],</span> <span class="n">x_opt</span><span class="p">[</span><span class="mi">6</span><span class="p">]</span>
-</pre></div>
-
-</div>
-</div>
-</div>
-
-</div>
-<div class="cell border-box-sizing text_cell rendered">
-<div class="prompt input_prompt">
-</div>
-<div class="inner_cell">
-<div class="text_cell_render border-box-sizing rendered_html">
-<p>new variable here is x_350 = 0.89. This variable says: had 350 been in Van Vliet&#39;s table, the entry would have been 0.89 (which does not seem unreasonable).</p>
-<p>The P_third variable = 0 in this calibration. We find for the distribution of someone in i = 5:</p>
-</div>
-</div>
-</div>
-<div class="cell border-box-sizing code_cell rendered">
-<div class="input">
-<div class="prompt input_prompt">
-In&nbsp;[7]:
-</div>
-<div class="inner_cell">
-    <div class="input_area">
-<div class="highlight"><pre><span class="n">P</span><span class="p">(</span><span class="mi">5</span><span class="p">,</span><span class="n">P_first</span><span class="p">,</span><span class="n">P_second</span><span class="p">)</span>
-</pre></div>
-
-</div>
-</div>
-</div>
-
-<div class="output_wrapper">
-<div class="output">
-
-
-<div class="output_area"><div class="prompt output_prompt">
-    Out[7]:</div>
-
-
-<div class="output_text output_subarea output_pyout">
-<pre>
-[0.0,
- 0.0,
- 0.0,
- 0.0,
- 0.13384230267841712,
- 0.7323153946431658,
- 0.13384230267841712,
- 0.0,
- 0.0,
- 0.0,
- 0.0,
- 0.0,
- 0.0,
- 0.0,
- 0.0,
- 0.0,
- 0.0,
- 0.0,
- 0.0]
-</pre>
-</div>
-
-</div>
-
-</div>
-</div>
-
-</div>
-<div class="cell border-box-sizing code_cell rendered">
-<div class="input">
-<div class="prompt input_prompt">
-In&nbsp;[12]:
-</div>
-<div class="inner_cell">
-    <div class="input_area">
-<div class="highlight"><pre><span class="n">predicted_x0</span> <span class="o">=</span> <span class="nb">sum</span><span class="p">(</span><span class="n">vector_expenditures</span><span class="p">(</span><span class="n">z_bar</span><span class="p">,</span><span class="n">P_first</span><span class="p">,</span><span class="n">P_second</span><span class="p">,</span><span class="n">alpha</span><span class="p">,</span><span class="n">gamma</span><span class="p">,</span><span class="n">zeta</span><span class="p">,</span><span class="mi">0</span><span class="p">))</span> <span class="c">### includes chronic</span>
-</pre></div>
-
-</div>
-</div>
-</div>
-
-</div>
-<div class="cell border-box-sizing text_cell rendered">
-<div class="prompt input_prompt">
-</div>
-<div class="inner_cell">
-<div class="text_cell_render border-box-sizing rendered_html">
-<h1 id="simulations">Simulations</h1>
-<p>We will do one simulation here: we vary the deductible from 0 to 1000 euro and plot total expenditure.</p>
-</div>
-</div>
-</div>
-<div class="cell border-box-sizing text_cell rendered">
-<div class="prompt input_prompt">
-</div>
-<div class="inner_cell">
-<div class="text_cell_render border-box-sizing rendered_html">
-<h3 id="varying-the-deductible">Varying the deductible</h3>
-</div>
-</div>
-</div>
-<div class="cell border-box-sizing code_cell rendered">
-<div class="input">
-<div class="prompt input_prompt">
-In&nbsp;[12]:
-</div>
-<div class="inner_cell">
-    <div class="input_area">
-<div class="highlight"><pre><span class="n">y</span> <span class="o">=</span> <span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="o">/</span><span class="n">zeta</span><span class="o">*</span><span class="n">log</span><span class="p">(</span><span class="mi">1</span><span class="o">-</span><span class="n">i</span><span class="o">/</span><span class="n">number_categories</span><span class="o">-</span><span class="mi">1</span><span class="o">/</span><span class="mi">2</span><span class="o">*</span><span class="mi">1</span><span class="o">/</span><span class="n">number_categories</span><span class="p">)</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">categories_non_chronic</span><span class="p">]</span> 
-
-<span class="n">range_of_deductibles</span> <span class="o">=</span> <span class="nb">range</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="mi">3600</span><span class="p">,</span><span class="mi">200</span><span class="p">)</span>
-
-<span class="k">def</span> <span class="nf">t_base</span><span class="p">(</span><span class="n">x</span><span class="p">,</span><span class="n">deductible</span><span class="p">):</span>
-   <span class="k">if</span> <span class="n">x</span> <span class="o">&lt;</span> <span class="n">deductible</span><span class="p">:</span>
-     <span class="n">t</span> <span class="o">=</span> <span class="n">x</span>
-   <span class="k">else</span><span class="p">:</span> 
-     <span class="n">t</span> <span class="o">=</span> <span class="n">deductible</span>
-   <span class="k">return</span> <span class="n">t</span>
-
-<span class="n">Dictionary_of_functions</span> <span class="o">=</span> <span class="p">{}</span>
-
-<span class="k">for</span> <span class="n">deductible</span> <span class="ow">in</span> <span class="n">range_of_deductibles</span><span class="p">:</span>
-    <span class="n">Dictionary_of_functions</span><span class="p">[</span><span class="n">deductible</span><span class="p">]</span><span class="o">=</span><span class="n">t_base</span>
-        
-</pre></div>
-
-</div>
-</div>
-</div>
-
-</div>
-<div class="cell border-box-sizing code_cell rendered">
-<div class="input">
-<div class="prompt input_prompt">
-In&nbsp;[9]:
-</div>
-<div class="inner_cell">
-    <div class="input_area">
-<div class="highlight"><pre><span class="k">def</span> <span class="nf">health_consumption</span><span class="p">(</span><span class="n">i</span><span class="p">,</span><span class="n">deductible_function</span><span class="p">):</span>
-    <span class="k">def</span> <span class="nf">expected_t</span><span class="p">(</span><span class="n">i</span><span class="p">,</span><span class="n">x</span><span class="p">):</span>
-        <span class="n">som</span> <span class="o">=</span> <span class="mi">0</span>
-        <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="n">categories_non_chronic</span><span class="p">:</span>
-            <span class="n">som</span> <span class="o">+=</span> <span class="n">P</span><span class="p">(</span><span class="n">i</span><span class="p">,</span> <span class="n">P_first</span><span class="p">,</span> <span class="n">P_second</span><span class="p">)[</span><span class="n">j</span><span class="p">]</span><span class="o">*</span><span class="n">deductible_function</span><span class="p">(</span><span class="n">y</span><span class="p">[</span><span class="n">j</span><span class="p">]</span><span class="o">+</span><span class="n">x</span><span class="p">)</span>
-        <span class="k">return</span> <span class="n">som</span> 
-    <span class="n">cons</span> <span class="o">=</span> <span class="n">optimize</span><span class="o">.</span><span class="n">brute</span><span class="p">(</span><span class="k">lambda</span> <span class="n">z</span><span class="p">:</span> <span class="o">-</span><span class="p">(</span><span class="n">alpha</span><span class="o">*</span><span class="n">z</span><span class="o">**</span><span class="n">gamma</span><span class="o">-</span><span class="n">expected_t</span><span class="p">(</span><span class="n">i</span><span class="p">,</span><span class="n">z</span><span class="p">)),</span> <span class="p">((</span><span class="mi">0</span><span class="p">,</span><span class="n">z_bar</span><span class="o">*</span><span class="n">y</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">**</span><span class="mf">2.0</span><span class="p">),),</span> <span class="n">finish</span> <span class="o">=</span> <span class="bp">None</span><span class="p">)</span>
-    <span class="n">expected_y</span> <span class="o">=</span> <span class="n">inner</span><span class="p">(</span><span class="n">array</span><span class="p">(</span><span class="n">y</span><span class="p">),</span><span class="n">array</span><span class="p">(</span><span class="n">P</span><span class="p">(</span><span class="n">i</span><span class="p">,</span><span class="n">P_first</span><span class="p">,</span><span class="n">P_second</span><span class="p">)))</span>
-    <span class="n">expected_out_of_pocket</span> <span class="o">=</span> <span class="nb">sum</span><span class="p">([</span><span class="n">P</span><span class="p">(</span><span class="n">i</span><span class="p">,</span> <span class="n">P_first</span><span class="p">,</span> <span class="n">P_second</span><span class="p">)[</span><span class="n">j</span><span class="p">]</span><span class="o">*</span><span class="n">deductible_function</span><span class="p">(</span><span class="n">y</span><span class="p">[</span><span class="n">j</span><span class="p">]</span><span class="o">+</span><span class="n">cons</span><span class="p">)</span> <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="n">categories_non_chronic</span><span class="p">])</span>
-    <span class="k">return</span> <span class="n">cons</span><span class="o">+</span><span class="n">expected_y</span><span class="p">,</span><span class="n">expected_out_of_pocket</span> <span class="c"># only for non-chronic</span>
-
-<span class="k">def</span> <span class="nf">vector_expenditures</span><span class="p">(</span><span class="n">deductible_function</span><span class="p">):</span>
-    <span class="n">health_expenditures</span> <span class="o">=</span> <span class="p">[</span><span class="n">health_consumption</span><span class="p">(</span><span class="n">i</span><span class="p">,</span><span class="n">deductible_function</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">categories_non_chronic</span><span class="p">]</span>
-    <span class="n">health_expenditures</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">x_chronic</span><span class="p">)</span>
-    <span class="n">total_e</span> <span class="o">=</span> <span class="nb">sum</span><span class="p">(</span><span class="n">health_expenditures</span><span class="p">)</span> 
-    <span class="n">health_expenditures</span><span class="o">.</span><span class="n">extend</span><span class="p">([</span><span class="n">total_e</span><span class="p">])</span> <span class="c"># expenditures for each non-chronic category and total which includes chronic as well</span>
-    <span class="n">out_of_pocket_expenditures</span> <span class="o">=</span> <span class="p">[</span><span class="n">health_consumption</span><span class="p">(</span><span class="n">i</span><span class="p">,</span><span class="n">deductible_function</span><span class="p">)[</span><span class="mi">1</span><span class="p">]</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">categories_non_chronic</span><span class="p">]</span> <span class="c"># non-chronic</span>
-    <span class="n">out_of_pocket_chronic</span> <span class="o">=</span> <span class="p">[</span><span class="n">deductible_function</span><span class="p">(</span><span class="n">x</span><span class="p">[</span><span class="n">i</span><span class="p">])</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">categories_chronic</span><span class="p">]</span>
-    <span class="n">out_of_pocket_expenditures</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">out_of_pocket_chronic</span><span class="p">)</span>
-    <span class="n">total_o</span> <span class="o">=</span> <span class="nb">sum</span><span class="p">(</span><span class="n">out_of_pocket_expenditures</span><span class="p">)</span> <span class="c">#  out_of_pocket for each non-chronic category and total which includes chronic as well</span>
-    <span class="n">out_of_pocket_expenditures</span><span class="o">.</span><span class="n">extend</span><span class="p">([</span><span class="n">total_o</span><span class="p">])</span>
-    <span class="k">return</span> <span class="n">health_expenditures</span><span class="p">,</span> <span class="n">out_of_pocket_expenditures</span>
-</pre></div>
-
-</div>
-</div>
-</div>
-
-</div>
-<div class="cell border-box-sizing code_cell rendered">
-<div class="input">
-<div class="prompt input_prompt">
-In&nbsp;[15]:
-</div>
-<div class="inner_cell">
-    <div class="input_area">
-<div class="highlight"><pre><span class="n">aggregate_expenditure</span> <span class="o">=</span> <span class="p">[]</span>
-<span class="n">aggregate_out_of_pocket</span> <span class="o">=</span> <span class="p">[]</span>
-<span class="k">for</span> <span class="n">deductible</span> <span class="ow">in</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">Dictionary_of_functions</span><span class="o">.</span><span class="n">keys</span><span class="p">()):</span>
-    <span class="n">deductible_function</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">Dictionary_of_functions</span><span class="p">[</span><span class="n">deductible</span><span class="p">](</span><span class="n">x</span><span class="p">,</span><span class="n">deductible</span><span class="p">)</span>
-    <span class="n">aggregate_expenditure</span><span class="o">.</span><span class="n">extend</span><span class="p">([</span><span class="n">vector_expenditures</span><span class="p">(</span><span class="n">deductible_function</span><span class="p">)[</span><span class="mi">0</span><span class="p">][</span><span class="n">summed</span><span class="p">]])</span>
-    <span class="n">aggregate_out_of_pocket</span><span class="o">.</span><span class="n">extend</span><span class="p">([</span><span class="n">vector_expenditures</span><span class="p">(</span><span class="n">deductible_function</span><span class="p">)[</span><span class="mi">1</span><span class="p">][</span><span class="n">summed</span><span class="p">]])</span>
-
-<span class="n">government_expenditure</span> <span class="o">=</span> <span class="nb">map</span><span class="p">(</span><span class="n">sub</span><span class="p">,</span> <span class="n">aggregate_expenditure</span><span class="p">,</span><span class="n">aggregate_out_of_pocket</span><span class="p">)</span>
-
-<span class="n">normalized_expenditure</span> <span class="o">=</span> <span class="n">array</span><span class="p">(</span><span class="n">aggregate_expenditure</span><span class="p">)</span><span class="o">/</span><span class="p">(</span><span class="n">predicted_x0</span><span class="p">)</span>
-<span class="n">normalized_government_expenditure</span> <span class="o">=</span> <span class="n">array</span><span class="p">(</span><span class="n">government_expenditure</span><span class="p">)</span><span class="o">/</span><span class="p">(</span><span class="n">predicted_x0</span><span class="p">)</span>
-
-<span class="n">plt</span><span class="o">.</span><span class="n">clf</span><span class="p">()</span>
-
-<span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">range_of_deductibles</span><span class="p">,</span> <span class="n">normalized_expenditure</span><span class="p">,</span><span class="s">&#39;-&#39;</span><span class="p">,</span> <span class="n">color</span> <span class="o">=</span> <span class="s">&#39;r&#39;</span><span class="p">,</span> <span class="n">linewidth</span> <span class="o">=</span> <span class="mi">2</span><span class="p">)</span>
-<span class="c">#plt.plot(range_of_deductibles,normalized_government_expenditure,&#39;-&#39;, color = &#39;b&#39;, linewidth = 2)</span>
-
-<span class="k">for</span> <span class="n">deductible</span> <span class="ow">in</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">tabel_Van_Vliet</span><span class="o">.</span><span class="n">keys</span><span class="p">()):</span>
-     <span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">([</span><span class="n">deductible</span><span class="p">],</span> <span class="p">[</span><span class="n">tabel_Van_Vliet</span><span class="p">[</span><span class="n">deductible</span><span class="p">]],</span> <span class="n">marker</span><span class="o">=</span><span class="s">&#39;o&#39;</span><span class="p">,</span> <span class="n">linestyle</span><span class="o">=</span><span class="s">&#39;&#39;</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s">&#39;r&#39;</span><span class="p">)</span>
-
-<span class="n">plt</span><span class="o">.</span><span class="n">title</span><span class="p">(</span><span class="s">&quot;Predicted vs Van Vliet&quot;</span><span class="p">,</span><span class="n">fontsize</span> <span class="o">=</span> <span class="mi">15</span><span class="p">)</span>
-<span class="n">plt</span><span class="o">.</span><span class="n">xlabel</span><span class="p">(</span><span class="s">&quot;eigen risico&quot;</span><span class="p">,</span><span class="n">fontsize</span> <span class="o">=</span> <span class="mi">15</span><span class="p">)</span>
-<span class="n">plt</span><span class="o">.</span><span class="n">ylabel</span><span class="p">(</span><span class="s">&quot;zorguitgaven (genormaliseerd)&quot;</span><span class="p">,</span><span class="n">fontsize</span> <span class="o">=</span> <span class="mi">15</span><span class="p">,</span><span class="n">rotation</span> <span class="o">=</span> <span class="mi">90</span><span class="p">)</span>
-<span class="n">plt</span><span class="o">.</span><span class="n">ylim</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="mf">1.1</span><span class="p">)</span>
-<span class="n">plt</span><span class="o">.</span><span class="n">savefig</span><span class="p">(</span><span class="s">&#39;simulationVVliet_unweighted.png&#39;</span><span class="p">)</span>
- 
-</pre></div>
-
-</div>
-</div>
-</div>
-
-<div class="output_wrapper">
-<div class="output">
-
-
-<div class="output_area"><div class="prompt"></div>
-
-
-<div class="output_png output_subarea ">
-<img src="data:image/png;base64,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
-"
->
-</div>
-
-</div>
-
-</div>
-</div>
-
-</div>
-<div class="cell border-box-sizing text_cell rendered">
-<div class="prompt input_prompt">
-</div>
-<div class="inner_cell">
-<div class="text_cell_render border-box-sizing rendered_html">
-<p>Here we normalize expenditure on the expenditure at deductible = 0. The red line gives total health care expenditures. The red dots correspond to the datapoints from Van Vliet (2004): see Table 1 above. With equal weight to Van Vliet and VWS data, we under-estimate the effects of Van Vliet.</p>
-</div>
-</div>
-</div>
-<div class="cell border-box-sizing text_cell rendered">
-<div class="prompt input_prompt">
-</div>
-<div class="inner_cell">
-<div class="text_cell_render border-box-sizing rendered_html">
-<h1 id="simulation-for-zorgkeuzes-in-kaart-the-year-2017-">Simulation for &#39;Zorgkeuzes in Kaart&#39; (the year 2017)</h1>
-<p>In 2017, we have the following baseline:</p>
-<ul>
-<li>deductible = €405</li>
-<li>compared to 2013, total expenditure (for which a deductible applies) grows from €31.558 (in millions of euros) to €33.618; i.e. with 6.5%</li>
-<li>we apply the 6.5% growth directly to the chronic categories (as we take these as exogenous)</li>
-<li>we change the distribution of y such that for the non-chronic categories we also get a growth rate of 6.5%</li>
-<li>that is, we re-callibrate $\zeta$ such that we match this increase in total costs with deductible of €405</li>
-</ul>
-<p>We compare this baseline outcome in 2017 with alternative forms of copayments</p>
-</div>
-</div>
-</div>
-<div class="cell border-box-sizing code_cell rendered">
-<div class="input">
-<div class="prompt input_prompt">
-In&nbsp;[16]:
-</div>
-<div class="inner_cell">
-    <div class="input_area">
-<div class="highlight"><pre><span class="n">baseline_deductible_2017</span> <span class="o">=</span> <span class="mi">405</span>
-<span class="n">expenditure_growth</span> <span class="o">=</span> <span class="mf">1.065</span>
-<span class="n">total_expenditure_2017</span> <span class="o">=</span> <span class="n">x</span><span class="p">[</span><span class="n">summed</span><span class="p">]</span><span class="o">*</span><span class="n">expenditure_growth</span>
-
-<span class="k">def</span> <span class="nf">y_2017</span><span class="p">(</span><span class="n">zeta</span><span class="p">):</span>
-   <span class="n">y</span> <span class="o">=</span> <span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="o">/</span><span class="n">zeta</span><span class="o">*</span><span class="n">log</span><span class="p">(</span><span class="mi">1</span><span class="o">-</span><span class="n">i</span><span class="o">/</span><span class="n">number_categories</span><span class="o">-</span><span class="mi">1</span><span class="o">/</span><span class="mi">2</span><span class="o">*</span><span class="mi">1</span><span class="o">/</span><span class="n">number_categories</span><span class="p">)</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">categories_non_chronic</span><span class="p">]</span> <span class="c"># distribution is defined for all categories, but we are only interested in the values of y for the non_chronic categories</span>
-   <span class="k">return</span> <span class="n">y</span>
-
-<span class="n">x_chronic_2017</span> <span class="o">=</span> <span class="p">[</span><span class="n">x</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">*</span><span class="n">expenditure_growth</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">categories_chronic</span><span class="p">]</span>
-
-<span class="k">def</span> <span class="nf">health_consumption_2017</span><span class="p">(</span><span class="n">i</span><span class="p">,</span><span class="n">vy</span><span class="p">,</span><span class="n">deduct</span><span class="p">,</span><span class="n">z_bar</span><span class="o">=</span><span class="n">z_bar</span><span class="p">,</span><span class="n">alpha</span><span class="o">=</span><span class="n">alpha</span><span class="p">,</span><span class="n">gamma</span><span class="o">=</span><span class="n">gamma</span><span class="p">,</span><span class="n">P_first</span><span class="o">=</span><span class="n">P_first</span><span class="p">,</span><span class="n">P_second</span><span class="o">=</span><span class="n">P_second</span><span class="p">):</span>
-    <span class="k">def</span> <span class="nf">expected_t</span><span class="p">(</span><span class="n">i</span><span class="p">,</span><span class="n">x</span><span class="p">):</span>
-        <span class="n">som</span> <span class="o">=</span> <span class="mi">0</span>
-        <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="n">categories_non_chronic</span><span class="p">:</span>
-            <span class="n">som</span> <span class="o">+=</span> <span class="n">P</span><span class="p">(</span><span class="n">i</span><span class="p">,</span> <span class="n">P_first</span><span class="p">,</span> <span class="n">P_second</span><span class="p">)[</span><span class="n">j</span><span class="p">]</span><span class="o">*</span><span class="n">t</span><span class="p">(</span><span class="n">vy</span><span class="p">[</span><span class="n">j</span><span class="p">]</span><span class="o">+</span><span class="n">x</span><span class="p">,</span><span class="n">deduct</span><span class="p">)</span>
-        <span class="k">return</span> <span class="n">som</span> 
-    <span class="n">cons</span> <span class="o">=</span> <span class="n">optimize</span><span class="o">.</span><span class="n">brute</span><span class="p">(</span><span class="k">lambda</span> <span class="n">z</span><span class="p">:</span> <span class="o">-</span><span class="p">(</span><span class="n">alpha</span><span class="o">*</span><span class="n">z</span><span class="o">**</span><span class="n">gamma</span><span class="o">-</span><span class="n">expected_t</span><span class="p">(</span><span class="n">i</span><span class="p">,</span><span class="n">z</span><span class="p">)),</span> <span class="p">((</span><span class="mi">0</span><span class="p">,</span><span class="n">z_bar</span><span class="o">*</span><span class="n">vy</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">**</span><span class="mf">2.0</span><span class="p">),),</span> <span class="n">finish</span> <span class="o">=</span> <span class="bp">None</span><span class="p">)</span> 
-                                                  <span class="c"># This is the routine that finds the z which maximizes patient&#39;s expected utility</span>
-    <span class="n">expected_y</span> <span class="o">=</span> <span class="n">inner</span><span class="p">(</span><span class="n">array</span><span class="p">(</span><span class="n">vy</span><span class="p">),</span><span class="n">array</span><span class="p">(</span><span class="n">P</span><span class="p">(</span><span class="n">i</span><span class="p">,</span><span class="n">P_first</span><span class="p">,</span><span class="n">P_second</span><span class="p">)))</span>
-    <span class="k">return</span> <span class="n">cons</span><span class="o">+</span><span class="n">expected_y</span> 
-
-<span class="k">def</span> <span class="nf">sum_expenditures_baseline_2017</span><span class="p">(</span><span class="n">zeta</span><span class="p">):</span>
-    <span class="n">deduct</span> <span class="o">=</span> <span class="n">baseline_deductible_2017</span>
-    <span class="n">vy</span> <span class="o">=</span> <span class="n">y_2017</span><span class="p">(</span><span class="n">zeta</span><span class="p">)</span>                                  <span class="c"># vy is vector of y_i for the non_chronic categories</span>
-    <span class="n">y_plus_z</span> <span class="o">=</span> <span class="p">[</span><span class="n">health_consumption_2017</span><span class="p">(</span><span class="n">i</span><span class="p">,</span><span class="n">vy</span><span class="p">,</span><span class="n">deduct</span><span class="p">)</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">categories_non_chronic</span><span class="p">]</span>
-    <span class="n">y_plus_z</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">x_chronic_2017</span><span class="p">)</span>
-    <span class="n">sum_expenditures</span> <span class="o">=</span> <span class="nb">sum</span><span class="p">(</span><span class="n">y_plus_z</span><span class="p">)</span>
-    <span class="k">return</span> <span class="n">sum_expenditures</span>
-</pre></div>
-
-</div>
-</div>
-</div>
-
-</div>
-<div class="cell border-box-sizing code_cell rendered">
-<div class="input">
-<div class="prompt input_prompt">
-In&nbsp;[]:
-</div>
-<div class="inner_cell">
-    <div class="input_area">
-<div class="highlight"><pre> 
-</pre></div>
-
-</div>
-</div>
-</div>
-
-</div>
-<div class="cell border-box-sizing code_cell rendered">
-<div class="input">
-<div class="prompt input_prompt">
-In&nbsp;[17]:
-</div>
-<div class="inner_cell">
-    <div class="input_area">
-<div class="highlight"><pre><span class="k">def</span> <span class="nf">difference</span><span class="p">(</span><span class="n">zeta</span><span class="p">):</span>
-    <span class="k">return</span> <span class="n">sum_expenditures_baseline_2017</span><span class="p">(</span><span class="n">zeta</span><span class="p">)</span><span class="o">-</span><span class="n">total_expenditure_2017</span>
-
-<span class="c">#zeta_2017 = findroot(difference, (0.01, 0.02), tol =.1**10 ,solver=&#39;anderson&#39;)</span>
-<span class="c">#print zeta_2017</span>
-<span class="n">zeta_2017</span> <span class="o">=</span> <span class="mf">0.0135745094109181</span>
-<span class="k">print</span> <span class="n">difference</span><span class="p">(</span><span class="n">zeta_2017</span><span class="p">)</span> <span class="c"># if this equals 0.0 (see output below cell) then zeta_2017 matches the increase in total costs of 6.5%</span>
-<span class="n">y2017</span> <span class="o">=</span> <span class="n">y_2017</span><span class="p">(</span><span class="n">zeta_2017</span><span class="p">)</span>
-<span class="n">bruto_kosten_base_2017</span> <span class="o">=</span> <span class="n">sum_expenditures_baseline_2017</span><span class="p">(</span><span class="n">zeta_2017</span><span class="p">)</span>
-
-<span class="k">def</span> <span class="nf">vector_expenditures_baseline_2017</span><span class="p">(</span><span class="n">deduct</span><span class="p">):</span>
-    <span class="n">vy</span> <span class="o">=</span> <span class="n">y2017</span>                                  <span class="c"># vy is vector of y_i for the non_chronic categories</span>
-    <span class="n">y_plus_z</span> <span class="o">=</span> <span class="p">[</span><span class="n">health_consumption</span><span class="p">(</span><span class="n">i</span><span class="p">,</span><span class="n">vy</span><span class="p">,</span><span class="n">deduct</span><span class="p">)</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">categories_non_chronic</span><span class="p">]</span>
-    <span class="n">y_plus_z</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">x_chronic_2017</span><span class="p">)</span>
-    <span class="n">sum_expenditures</span> <span class="o">=</span> <span class="nb">sum</span><span class="p">(</span><span class="n">y_plus_z</span><span class="p">)</span>
-    <span class="n">y_plus_z</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">sum_expenditures</span><span class="p">)</span>
-    <span class="k">return</span> <span class="n">y_plus_z</span>
-</pre></div>
-
-</div>
-</div>
-</div>
-
-<div class="output_wrapper">
-<div class="output">
-
-
-<div class="output_area"><div class="prompt"></div>
-<div class="output_subarea output_stream output_stdout output_text">
-<pre>
--1.23691279441e-10
-
-</pre>
-</div>
-</div>
-
-</div>
-</div>
-
-</div>
-<div class="cell border-box-sizing code_cell rendered">
-<div class="input">
-<div class="prompt input_prompt">
-In&nbsp;[23]:
-</div>
-<div class="inner_cell">
-    <div class="input_area">
-<div class="highlight"><pre><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="o">/</span><span class="n">zeta_2017</span><span class="o">*</span><span class="n">log</span><span class="p">(</span><span class="mi">1</span><span class="o">-</span><span class="n">i</span><span class="o">/</span><span class="n">number_categories</span><span class="o">-</span><span class="mi">1</span><span class="o">/</span><span class="mi">2</span><span class="o">*</span><span class="mi">1</span><span class="o">/</span><span class="n">number_categories</span><span class="p">)</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">categories_non_chronic</span><span class="p">]</span>
-</pre></div>
-
-</div>
-</div>
-</div>
-
-<div class="output_wrapper">
-<div class="output">
-
-
-<div class="output_area"><div class="prompt output_prompt">
-    Out[23]:</div>
-
-
-<div class="output_text output_subarea output_pyout">
-<pre>
-[1.8650992988318646,
- 5.7432308682188369,
- 9.8369221739330133,
- 14.171553963690922,
- 18.777271569297223,
- 23.690257555003033,
- 28.954459878563245,
- 34.623986401137074,
- 40.766500020965317,
- 47.46816233905669,
- 54.841059253952537,
- 63.0347723188803,
- 72.25522656626076,
- 82.797106151653082,
- 95.103560816512115,
- 109.88646673138444,
- 128.40016919187792,
- 153.18723341908196,
- 190.81847358420566]
-</pre>
-</div>
-
-</div>
-
-</div>
-</div>
-
-</div>
-<div class="cell border-box-sizing code_cell rendered">
-<div class="input">
-<div class="prompt input_prompt">
-In&nbsp;[18]:
-</div>
-<div class="inner_cell">
-    <div class="input_area">
-<div class="highlight"><pre><span class="k">def</span> <span class="nf">health_consumption_2017</span><span class="p">(</span><span class="n">i</span><span class="p">,</span><span class="n">deductible_function</span><span class="p">):</span>
-    <span class="k">def</span> <span class="nf">expected_t</span><span class="p">(</span><span class="n">i</span><span class="p">,</span><span class="n">x</span><span class="p">):</span>
-        <span class="n">som</span> <span class="o">=</span> <span class="mi">0</span>
-        <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="n">categories_non_chronic</span><span class="p">:</span>
-            <span class="n">som</span> <span class="o">+=</span> <span class="n">P</span><span class="p">(</span><span class="n">i</span><span class="p">,</span> <span class="n">P_first</span><span class="p">,</span> <span class="n">P_second</span><span class="p">)[</span><span class="n">j</span><span class="p">]</span><span class="o">*</span><span class="n">deductible_function</span><span class="p">(</span><span class="n">y2017</span><span class="p">[</span><span class="n">j</span><span class="p">]</span><span class="o">+</span><span class="n">x</span><span class="p">)</span>
-        <span class="k">return</span> <span class="n">som</span> 
-    <span class="n">cons</span> <span class="o">=</span> <span class="n">optimize</span><span class="o">.</span><span class="n">brute</span><span class="p">(</span><span class="k">lambda</span> <span class="n">z</span><span class="p">:</span> <span class="o">-</span><span class="p">(</span><span class="n">alpha</span><span class="o">*</span><span class="n">z</span><span class="o">**</span><span class="n">gamma</span><span class="o">-</span><span class="n">expected_t</span><span class="p">(</span><span class="n">i</span><span class="p">,</span><span class="n">z</span><span class="p">)),</span> <span class="p">((</span><span class="mi">0</span><span class="p">,</span><span class="n">z_bar</span><span class="o">*</span><span class="n">y2017</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">**</span><span class="mf">2.0</span><span class="p">),),</span> <span class="n">finish</span> <span class="o">=</span> <span class="bp">None</span><span class="p">)</span>
-    <span class="n">expected_y</span> <span class="o">=</span> <span class="n">inner</span><span class="p">(</span><span class="n">array</span><span class="p">(</span><span class="n">y2017</span><span class="p">),</span><span class="n">array</span><span class="p">(</span><span class="n">P</span><span class="p">(</span><span class="n">i</span><span class="p">,</span><span class="n">P_first</span><span class="p">,</span><span class="n">P_second</span><span class="p">)))</span>
-    <span class="n">expected_out_of_pocket</span> <span class="o">=</span> <span class="nb">sum</span><span class="p">([</span><span class="n">P</span><span class="p">(</span><span class="n">i</span><span class="p">,</span> <span class="n">P_first</span><span class="p">,</span> <span class="n">P_second</span><span class="p">)[</span><span class="n">j</span><span class="p">]</span><span class="o">*</span><span class="n">deductible_function</span><span class="p">(</span><span class="n">y2017</span><span class="p">[</span><span class="n">j</span><span class="p">]</span><span class="o">+</span><span class="n">cons</span><span class="p">)</span> <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="n">categories_non_chronic</span><span class="p">])</span>
-    <span class="k">return</span> <span class="n">cons</span><span class="o">+</span><span class="n">expected_y</span><span class="p">,</span><span class="n">expected_out_of_pocket</span>
-
-<span class="k">def</span> <span class="nf">vector_expenditures_2017</span><span class="p">(</span><span class="n">deductible_function</span><span class="p">):</span>
-    <span class="n">health_expenditures</span> <span class="o">=</span> <span class="p">[</span><span class="n">health_consumption_2017</span><span class="p">(</span><span class="n">i</span><span class="p">,</span><span class="n">deductible_function</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">categories_non_chronic</span><span class="p">]</span>
-    <span class="n">health_expenditures</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">x_chronic_2017</span><span class="p">)</span>
-    <span class="n">total_e</span> <span class="o">=</span> <span class="nb">sum</span><span class="p">(</span><span class="n">health_expenditures</span><span class="p">)</span>
-    <span class="n">health_expenditures</span><span class="o">.</span><span class="n">extend</span><span class="p">([</span><span class="n">total_e</span><span class="p">])</span>
-    <span class="n">out_of_pocket_expenditures</span> <span class="o">=</span> <span class="p">[</span><span class="n">health_consumption_2017</span><span class="p">(</span><span class="n">i</span><span class="p">,</span><span class="n">deductible_function</span><span class="p">)[</span><span class="mi">1</span><span class="p">]</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">categories_non_chronic</span><span class="p">]</span>
-    <span class="n">out_of_pocket_chronic</span> <span class="o">=</span> <span class="p">[</span><span class="n">deductible_function</span><span class="p">(</span><span class="n">x_chronic_2017</span><span class="p">[</span><span class="n">i</span><span class="p">])</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="n">number_chronic_categories</span><span class="p">)]</span>
-    <span class="n">out_of_pocket_expenditures</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">out_of_pocket_chronic</span><span class="p">)</span>
-    <span class="n">total_o</span> <span class="o">=</span> <span class="nb">sum</span><span class="p">(</span><span class="n">out_of_pocket_expenditures</span><span class="p">)</span>
-    <span class="n">out_of_pocket_expenditures</span><span class="o">.</span><span class="n">extend</span><span class="p">([</span><span class="n">total_o</span><span class="p">])</span>
-    <span class="k">return</span> <span class="n">health_expenditures</span><span class="p">,</span> <span class="n">out_of_pocket_expenditures</span>
-</pre></div>
-
-</div>
-</div>
-</div>
-
-</div>
-<div class="cell border-box-sizing text_cell rendered">
-<div class="prompt input_prompt">
-</div>
-<div class="inner_cell">
-<div class="text_cell_render border-box-sizing rendered_html">
-<h2 id="varying-the-deductible-an-increase-of-100">Varying the deductible: an increase of €100</h2>
-<p>The first version is an increase in the deductible from €405 to €505</p>
-</div>
-</div>
-</div>
-<div class="cell border-box-sizing code_cell rendered">
-<div class="input">
-<div class="prompt input_prompt">
-In&nbsp;[19]:
-</div>
-<div class="inner_cell">
-    <div class="input_area">
-<div class="highlight"><pre><span class="k">def</span> <span class="nf">t_base_2017</span><span class="p">(</span><span class="n">x</span><span class="p">):</span>
-   <span class="k">if</span> <span class="n">x</span> <span class="o">&lt;</span> <span class="n">baseline_deductible_2017</span><span class="p">:</span>
-     <span class="n">t</span> <span class="o">=</span> <span class="n">x</span>
-   <span class="k">else</span><span class="p">:</span> 
-     <span class="n">t</span> <span class="o">=</span> <span class="n">baseline_deductible_2017</span>
-   <span class="k">return</span> <span class="n">t</span>
-
-<span class="k">def</span> <span class="nf">t_505</span><span class="p">(</span><span class="n">x</span><span class="p">):</span>
-   <span class="k">if</span> <span class="n">x</span> <span class="o">&lt;</span> <span class="mi">505</span><span class="p">:</span>
-     <span class="n">t</span> <span class="o">=</span> <span class="n">x</span>
-   <span class="k">else</span><span class="p">:</span> 
-     <span class="n">t</span> <span class="o">=</span> <span class="mi">505</span>
-   <span class="k">return</span> <span class="n">t</span>
-</pre></div>
-
-</div>
-</div>
-</div>
-
-</div>
-<div class="cell border-box-sizing code_cell rendered">
-<div class="input">
-<div class="prompt input_prompt">
-In&nbsp;[27]:
-</div>
-<div class="inner_cell">
-    <div class="input_area">
-<div class="highlight"><pre><span class="n">health_consumption_2017</span><span class="p">(</span><span class="mi">7</span><span class="p">,</span><span class="n">t_505</span><span class="p">)</span>
-</pre></div>
-
-</div>
-</div>
-</div>
-
-<div class="output_wrapper">
-<div class="output">
-
-
-<div class="output_area"><div class="prompt output_prompt">
-    Out[27]:</div>
-
-
-<div class="output_text output_subarea output_pyout">
-<pre>
-(34.687292083370785, 34.687292083370785)
-</pre>
-</div>
-
-</div>
-
-</div>
-</div>
-
-</div>
-<div class="cell border-box-sizing code_cell rendered">
-<div class="input">
-<div class="prompt input_prompt">
-In&nbsp;[20]:
-</div>
-<div class="inner_cell">
-    <div class="input_area">
-<div class="highlight"><pre><span class="n">bruto_kosten_base_2017</span> <span class="o">=</span> <span class="p">(</span><span class="n">vector_expenditures_2017</span><span class="p">(</span><span class="n">t_base_2017</span><span class="p">)[</span><span class="mi">0</span><span class="p">][</span><span class="mi">20</span><span class="p">])</span><span class="o">*</span><span class="mi">666000</span>
-<span class="n">bruto_kosten_505_2017</span> <span class="o">=</span> <span class="p">(</span><span class="n">vector_expenditures_2017</span><span class="p">(</span><span class="n">t_505</span><span class="p">)[</span><span class="mi">0</span><span class="p">][</span><span class="mi">20</span><span class="p">])</span><span class="o">*</span><span class="mi">666000</span>
-<span class="n">totaal_betaald_ER_base_2017</span> <span class="o">=</span> <span class="p">(</span><span class="n">vector_expenditures_2017</span><span class="p">(</span><span class="n">t_base_2017</span><span class="p">)[</span><span class="mi">1</span><span class="p">][</span><span class="mi">20</span><span class="p">])</span><span class="o">*</span><span class="mi">666000</span>
-<span class="n">totaal_betaald_ER_505_2017</span> <span class="o">=</span> <span class="p">(</span><span class="n">vector_expenditures_2017</span><span class="p">(</span><span class="n">t_505</span><span class="p">)[</span><span class="mi">1</span><span class="p">][</span><span class="mi">20</span><span class="p">])</span><span class="o">*</span><span class="mi">666000</span>
-<span class="n">netto_kosten_base_2017</span> <span class="o">=</span> <span class="n">bruto_kosten_base_2017</span> <span class="o">-</span> <span class="n">totaal_betaald_ER_base_2017</span>
-<span class="n">netto_kosten_505_2017</span> <span class="o">=</span> <span class="n">bruto_kosten_505_2017</span> <span class="o">-</span> <span class="n">totaal_betaald_ER_505_2017</span>
-<span class="n">remgeld_effect_2017</span> <span class="o">=</span> <span class="n">bruto_kosten_base_2017</span> <span class="o">-</span> <span class="n">bruto_kosten_505_2017</span> <span class="c"># als dit positief is, nemen de kosten af</span>
-</pre></div>
-
-</div>
-</div>
-</div>
-
-</div>
-<div class="cell border-box-sizing code_cell rendered">
-<div class="input">
-<div class="prompt input_prompt">
-In&nbsp;[21]:
-</div>
-<div class="inner_cell">
-    <div class="input_area">
-<div class="highlight"><pre><span class="k">print</span> <span class="s">&quot;</span><span class="si">%0.2f</span><span class="s">&quot;</span> <span class="o">%</span> <span class="n">bruto_kosten_base_2017</span>
-<span class="k">print</span> <span class="s">&quot;</span><span class="si">%0.2f</span><span class="s">&quot;</span> <span class="o">%</span> <span class="n">bruto_kosten_505_2017</span>
-<span class="k">print</span> <span class="s">&quot;</span><span class="si">%0.2f</span><span class="s">&quot;</span> <span class="o">%</span> <span class="n">totaal_betaald_ER_base_2017</span>
-<span class="k">print</span> <span class="s">&quot;</span><span class="si">%0.2f</span><span class="s">&quot;</span> <span class="o">%</span> <span class="n">totaal_betaald_ER_505_2017</span>
-<span class="k">print</span> <span class="s">&quot;</span><span class="si">%0.2f</span><span class="s">&quot;</span> <span class="o">%</span> <span class="n">netto_kosten_base_2017</span>
-<span class="k">print</span> <span class="s">&quot;</span><span class="si">%0.2f</span><span class="s">&quot;</span> <span class="o">%</span> <span class="n">netto_kosten_505_2017</span>
-<span class="k">print</span> <span class="s">&quot;</span><span class="si">%0.2f</span><span class="s">&quot;</span> <span class="o">%</span> <span class="n">remgeld_effect_2017</span>
-</pre></div>
-
-</div>
-</div>
-</div>
-
-<div class="output_wrapper">
-<div class="output">
-
-
-<div class="output_area"><div class="prompt"></div>
-<div class="output_subarea output_stream output_stdout output_text">
-<pre>
-33610401044.91
-33325189968.76
-3087195055.62
-3515138684.90
-30523205989.29
-29810051283.85
-285211076.15
-
-</pre>
-</div>
-</div>
-
-</div>
-</div>
-
-</div>
-<div class="cell border-box-sizing code_cell rendered">
-<div class="input">
-<div class="prompt input_prompt">
-In&nbsp;[]:
-</div>
-<div class="inner_cell">
-    <div class="input_area">
-<div class="highlight"><pre><span class="mf">33325189968.756176</span>
-<span class="o">-</span><span class="mf">33325139502.688541</span>
-</pre></div>
-
-</div>
-</div>
-</div>
-
-</div>
-<div class="cell border-box-sizing text_cell rendered">
-<div class="prompt input_prompt">
-</div>
-<div class="inner_cell">
-<div class="text_cell_render border-box-sizing rendered_html">
-<h2 id="varying-the-deductible-a-decrease-of-100">Varying the deductible: a decrease of €100</h2>
-<p>The first version is an increase in the deductible from €405 to €305</p>
-</div>
-</div>
-</div>
-<div class="cell border-box-sizing code_cell rendered">
-<div class="input">
-<div class="prompt input_prompt">
-In&nbsp;[24]:
-</div>
-<div class="inner_cell">
-    <div class="input_area">
-<div class="highlight"><pre><span class="k">def</span> <span class="nf">t_base_2017</span><span class="p">(</span><span class="n">x</span><span class="p">):</span>
-   <span class="k">if</span> <span class="n">x</span> <span class="o">&lt;</span> <span class="n">baseline_deductible_2017</span><span class="p">:</span>
-     <span class="n">t</span> <span class="o">=</span> <span class="n">x</span>
-   <span class="k">else</span><span class="p">:</span> 
-     <span class="n">t</span> <span class="o">=</span> <span class="n">baseline_deductible_2017</span>
-   <span class="k">return</span> <span class="n">t</span>
-
-<span class="k">def</span> <span class="nf">t_305</span><span class="p">(</span><span class="n">x</span><span class="p">):</span>
-   <span class="k">if</span> <span class="n">x</span> <span class="o">&lt;</span> <span class="mi">305</span><span class="p">:</span>
-     <span class="n">t</span> <span class="o">=</span> <span class="n">x</span>
-   <span class="k">else</span><span class="p">:</span> 
-     <span class="n">t</span> <span class="o">=</span> <span class="mi">305</span>
-   <span class="k">return</span> <span class="n">t</span>
-</pre></div>
-
-</div>
-</div>
-</div>
-
-</div>
-<div class="cell border-box-sizing code_cell rendered">
-<div class="input">
-<div class="prompt input_prompt">
-In&nbsp;[25]:
-</div>
-<div class="inner_cell">
-    <div class="input_area">
-<div class="highlight"><pre><span class="n">bruto_kosten_base_2017</span> <span class="o">=</span> <span class="p">(</span><span class="n">vector_expenditures_2017</span><span class="p">(</span><span class="n">t_base_2017</span><span class="p">)[</span><span class="mi">0</span><span class="p">][</span><span class="mi">20</span><span class="p">])</span><span class="o">*</span><span class="mi">666000</span>
-<span class="n">bruto_kosten_305_2017</span> <span class="o">=</span> <span class="p">(</span><span class="n">vector_expenditures_2017</span><span class="p">(</span><span class="n">t_305</span><span class="p">)[</span><span class="mi">0</span><span class="p">][</span><span class="mi">20</span><span class="p">])</span><span class="o">*</span><span class="mi">666000</span>
-<span class="n">totaal_betaald_ER_base_2017</span> <span class="o">=</span> <span class="p">(</span><span class="n">vector_expenditures_2017</span><span class="p">(</span><span class="n">t_base_2017</span><span class="p">)[</span><span class="mi">1</span><span class="p">][</span><span class="mi">20</span><span class="p">])</span><span class="o">*</span><span class="mi">666000</span>
-<span class="n">totaal_betaald_ER_305_2017</span> <span class="o">=</span> <span class="p">(</span><span class="n">vector_expenditures_2017</span><span class="p">(</span><span class="n">t_305</span><span class="p">)[</span><span class="mi">1</span><span class="p">][</span><span class="mi">20</span><span class="p">])</span><span class="o">*</span><span class="mi">666000</span>
-<span class="n">netto_kosten_base_2017</span> <span class="o">=</span> <span class="n">bruto_kosten_base_2017</span> <span class="o">-</span> <span class="n">totaal_betaald_ER_base_2017</span>
-<span class="n">netto_kosten_305_2017</span> <span class="o">=</span> <span class="n">bruto_kosten_305_2017</span> <span class="o">-</span> <span class="n">totaal_betaald_ER_305_2017</span>
-<span class="n">remgeld_effect_2017</span> <span class="o">=</span> <span class="n">bruto_kosten_base_2017</span> <span class="o">-</span> <span class="n">bruto_kosten_305_2017</span> <span class="c"># als dit positief is, nemen de kosten af </span>
-</pre></div>
-
-</div>
-</div>
-</div>
-
-</div>
-<div class="cell border-box-sizing code_cell rendered">
-<div class="input">
-<div class="prompt input_prompt">
-In&nbsp;[26]:
-</div>
-<div class="inner_cell">
-    <div class="input_area">
-<div class="highlight"><pre><span class="k">print</span> <span class="s">&quot;</span><span class="si">%0.2f</span><span class="s">&quot;</span> <span class="o">%</span> <span class="n">bruto_kosten_base_2017</span>
-<span class="k">print</span> <span class="s">&quot;</span><span class="si">%0.2f</span><span class="s">&quot;</span> <span class="o">%</span> <span class="n">bruto_kosten_305_2017</span>
-<span class="k">print</span> <span class="s">&quot;</span><span class="si">%0.2f</span><span class="s">&quot;</span> <span class="o">%</span> <span class="n">totaal_betaald_ER_base_2017</span>
-<span class="k">print</span> <span class="s">&quot;</span><span class="si">%0.2f</span><span class="s">&quot;</span> <span class="o">%</span> <span class="n">totaal_betaald_ER_305_2017</span>
-<span class="k">print</span> <span class="s">&quot;</span><span class="si">%0.2f</span><span class="s">&quot;</span> <span class="o">%</span> <span class="n">netto_kosten_base_2017</span>
-<span class="k">print</span> <span class="s">&quot;</span><span class="si">%0.2f</span><span class="s">&quot;</span> <span class="o">%</span> <span class="n">netto_kosten_305_2017</span>
-<span class="k">print</span> <span class="s">&quot;</span><span class="si">%0.2f</span><span class="s">&quot;</span> <span class="o">%</span> <span class="n">remgeld_effect_2017</span>
-</pre></div>
-
-</div>
-</div>
-</div>
-
-<div class="output_wrapper">
-<div class="output">
-
-
-<div class="output_area"><div class="prompt"></div>
-<div class="output_subarea output_stream output_stdout output_text">
-<pre>
-33610401044.91
-33820763583.64
-3087195055.62
-2530524724.67
-30523205989.29
-31290238858.97
--210362538.73
-
-</pre>
-</div>
-</div>
-
-</div>
-</div>
-
-</div>
-<div class="cell border-box-sizing text_cell rendered">
-<div class="prompt input_prompt">
-</div>
-<div class="inner_cell">
-<div class="text_cell_render border-box-sizing rendered_html">
-<h2 id="varying-the-deductible-a-decrease-to-220">Varying the deductible: a decrease to €220</h2>
-<p>The first version is an increase in the deductible from €405 to €220</p>
-</div>
-</div>
-</div>
-<div class="cell border-box-sizing code_cell rendered">
-<div class="input">
-<div class="prompt input_prompt">
-In&nbsp;[27]:
-</div>
-<div class="inner_cell">
-    <div class="input_area">
-<div class="highlight"><pre><span class="k">def</span> <span class="nf">t_base_2017</span><span class="p">(</span><span class="n">x</span><span class="p">):</span>
-   <span class="k">if</span> <span class="n">x</span> <span class="o">&lt;</span> <span class="n">baseline_deductible_2017</span><span class="p">:</span>
-     <span class="n">t</span> <span class="o">=</span> <span class="n">x</span>
-   <span class="k">else</span><span class="p">:</span> 
-     <span class="n">t</span> <span class="o">=</span> <span class="n">baseline_deductible_2017</span>
-   <span class="k">return</span> <span class="n">t</span>
-
-<span class="k">def</span> <span class="nf">t_220</span><span class="p">(</span><span class="n">x</span><span class="p">):</span>
-   <span class="k">if</span> <span class="n">x</span> <span class="o">&lt;</span> <span class="mi">220</span><span class="p">:</span>
-     <span class="n">t</span> <span class="o">=</span> <span class="n">x</span>
-   <span class="k">else</span><span class="p">:</span> 
-     <span class="n">t</span> <span class="o">=</span> <span class="mi">220</span>
-   <span class="k">return</span> <span class="n">t</span>
-</pre></div>
-
-</div>
-</div>
-</div>
-
-</div>
-<div class="cell border-box-sizing code_cell rendered">
-<div class="input">
-<div class="prompt input_prompt">
-In&nbsp;[28]:
-</div>
-<div class="inner_cell">
-    <div class="input_area">
-<div class="highlight"><pre><span class="n">bruto_kosten_base_2017</span> <span class="o">=</span> <span class="p">(</span><span class="n">vector_expenditures_2017</span><span class="p">(</span><span class="n">t_base_2017</span><span class="p">)[</span><span class="mi">0</span><span class="p">][</span><span class="mi">20</span><span class="p">])</span><span class="o">*</span><span class="mi">666000</span>
-<span class="n">bruto_kosten_220_2017</span> <span class="o">=</span> <span class="p">(</span><span class="n">vector_expenditures_2017</span><span class="p">(</span><span class="n">t_220</span><span class="p">)[</span><span class="mi">0</span><span class="p">][</span><span class="mi">20</span><span class="p">])</span><span class="o">*</span><span class="mi">666000</span>
-<span class="n">totaal_betaald_ER_base_2017</span> <span class="o">=</span> <span class="p">(</span><span class="n">vector_expenditures_2017</span><span class="p">(</span><span class="n">t_base_2017</span><span class="p">)[</span><span class="mi">1</span><span class="p">][</span><span class="mi">20</span><span class="p">])</span><span class="o">*</span><span class="mi">666000</span>
-<span class="n">totaal_betaald_ER_220_2017</span> <span class="o">=</span> <span class="p">(</span><span class="n">vector_expenditures_2017</span><span class="p">(</span><span class="n">t_220</span><span class="p">)[</span><span class="mi">1</span><span class="p">][</span><span class="mi">20</span><span class="p">])</span><span class="o">*</span><span class="mi">666000</span>
-<span class="n">netto_kosten_base_2017</span> <span class="o">=</span> <span class="n">bruto_kosten_base_2017</span> <span class="o">-</span> <span class="n">totaal_betaald_ER_base_2017</span>
-<span class="n">netto_kosten_220_2017</span> <span class="o">=</span> <span class="n">bruto_kosten_220_2017</span> <span class="o">-</span> <span class="n">totaal_betaald_ER_220_2017</span>
-<span class="n">remgeld_effect_2017</span> <span class="o">=</span> <span class="n">bruto_kosten_base_2017</span> <span class="o">-</span> <span class="n">bruto_kosten_220_2017</span> <span class="c"># als dit positief is, nemen de kosten af </span>
-</pre></div>
-
-</div>
-</div>
-</div>
-
-</div>
-<div class="cell border-box-sizing code_cell rendered">
-<div class="input">
-<div class="prompt input_prompt">
-In&nbsp;[29]:
-</div>
-<div class="inner_cell">
-    <div class="input_area">
-<div class="highlight"><pre><span class="k">print</span> <span class="s">&quot;</span><span class="si">%0.2f</span><span class="s">&quot;</span> <span class="o">%</span> <span class="n">bruto_kosten_base_2017</span>
-<span class="k">print</span> <span class="s">&quot;</span><span class="si">%0.2f</span><span class="s">&quot;</span> <span class="o">%</span> <span class="n">bruto_kosten_220_2017</span>
-<span class="k">print</span> <span class="s">&quot;</span><span class="si">%0.2f</span><span class="s">&quot;</span> <span class="o">%</span> <span class="n">totaal_betaald_ER_base_2017</span>
-<span class="k">print</span> <span class="s">&quot;</span><span class="si">%0.2f</span><span class="s">&quot;</span> <span class="o">%</span> <span class="n">totaal_betaald_ER_220_2017</span>
-<span class="k">print</span> <span class="s">&quot;</span><span class="si">%0.2f</span><span class="s">&quot;</span> <span class="o">%</span> <span class="n">netto_kosten_base_2017</span>
-<span class="k">print</span> <span class="s">&quot;</span><span class="si">%0.2f</span><span class="s">&quot;</span> <span class="o">%</span> <span class="n">netto_kosten_220_2017</span>
-<span class="k">print</span> <span class="s">&quot;</span><span class="si">%0.2f</span><span class="s">&quot;</span> <span class="o">%</span> <span class="n">remgeld_effect_2017</span>
-</pre></div>
-
-</div>
-</div>
-</div>
-
-<div class="output_wrapper">
-<div class="output">
-
-
-<div class="output_area"><div class="prompt"></div>
-<div class="output_subarea output_stream output_stdout output_text">
-<pre>
-33610401044.91
-33972509036.62
-3087195055.62
-1974622988.14
-30523205989.29
-31997886048.49
--362107991.71
-
-</pre>
-</div>
-</div>
-
-</div>
-</div>
-
-</div>
-<div class="cell border-box-sizing text_cell rendered">
-<div class="prompt input_prompt">
-</div>
-<div class="inner_cell">
-<div class="text_cell_render border-box-sizing rendered_html">
-<h2 id="varying-the-deductible-a-decrease-to-0">Varying the deductible: a decrease to €0</h2>
-<p>The first version is an increase in the deductible from €405 to €0</p>
-</div>
-</div>
-</div>
-<div class="cell border-box-sizing code_cell rendered">
-<div class="input">
-<div class="prompt input_prompt">
-In&nbsp;[30]:
-</div>
-<div class="inner_cell">
-    <div class="input_area">
-<div class="highlight"><pre><span class="k">def</span> <span class="nf">t_base_2017</span><span class="p">(</span><span class="n">x</span><span class="p">):</span>
-   <span class="k">if</span> <span class="n">x</span> <span class="o">&lt;</span> <span class="n">baseline_deductible_2017</span><span class="p">:</span>
-     <span class="n">t</span> <span class="o">=</span> <span class="n">x</span>
-   <span class="k">else</span><span class="p">:</span> 
-     <span class="n">t</span> <span class="o">=</span> <span class="n">baseline_deductible_2017</span>
-   <span class="k">return</span> <span class="n">t</span>
-
-<span class="k">def</span> <span class="nf">t_0</span><span class="p">(</span><span class="n">x</span><span class="p">):</span>
-   <span class="k">if</span> <span class="n">x</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">:</span>
-     <span class="n">t</span> <span class="o">=</span> <span class="n">x</span>
-   <span class="k">else</span><span class="p">:</span> 
-     <span class="n">t</span> <span class="o">=</span> <span class="mi">0</span>
-   <span class="k">return</span> <span class="n">t</span>
-</pre></div>
-
-</div>
-</div>
-</div>
-
-</div>
-<div class="cell border-box-sizing code_cell rendered">
-<div class="input">
-<div class="prompt input_prompt">
-In&nbsp;[31]:
-</div>
-<div class="inner_cell">
-    <div class="input_area">
-<div class="highlight"><pre><span class="n">bruto_kosten_base_2017</span> <span class="o">=</span> <span class="p">(</span><span class="n">vector_expenditures_2017</span><span class="p">(</span><span class="n">t_base_2017</span><span class="p">)[</span><span class="mi">0</span><span class="p">][</span><span class="mi">20</span><span class="p">])</span><span class="o">*</span><span class="mi">666000</span>
-<span class="n">bruto_kosten_0_2017</span> <span class="o">=</span> <span class="p">(</span><span class="n">vector_expenditures_2017</span><span class="p">(</span><span class="n">t_0</span><span class="p">)[</span><span class="mi">0</span><span class="p">][</span><span class="mi">20</span><span class="p">])</span><span class="o">*</span><span class="mi">666000</span>
-<span class="n">totaal_betaald_ER_base_2017</span> <span class="o">=</span> <span class="p">(</span><span class="n">vector_expenditures_2017</span><span class="p">(</span><span class="n">t_base_2017</span><span class="p">)[</span><span class="mi">1</span><span class="p">][</span><span class="mi">20</span><span class="p">])</span><span class="o">*</span><span class="mi">666000</span>
-<span class="n">totaal_betaald_ER_0_2017</span> <span class="o">=</span> <span class="p">(</span><span class="n">vector_expenditures_2017</span><span class="p">(</span><span class="n">t_0</span><span class="p">)[</span><span class="mi">1</span><span class="p">][</span><span class="mi">20</span><span class="p">])</span><span class="o">*</span><span class="mi">666000</span>
-<span class="n">netto_kosten_base_2017</span> <span class="o">=</span> <span class="n">bruto_kosten_base_2017</span> <span class="o">-</span> <span class="n">totaal_betaald_ER_base_2017</span>
-<span class="n">netto_kosten_0_2017</span> <span class="o">=</span> <span class="n">bruto_kosten_0_2017</span> <span class="o">-</span> <span class="n">totaal_betaald_ER_0_2017</span>
-<span class="n">remgeld_effect_2017</span> <span class="o">=</span> <span class="n">bruto_kosten_base_2017</span> <span class="o">-</span> <span class="n">bruto_kosten_0_2017</span> <span class="c"># als dit positief is, nemen de kosten af</span>
-</pre></div>
-
-</div>
-</div>
-</div>
-
-</div>
-<div class="cell border-box-sizing code_cell rendered">
-<div class="input">
-<div class="prompt input_prompt">
-In&nbsp;[32]:
-</div>
-<div class="inner_cell">
-    <div class="input_area">
-<div class="highlight"><pre><span class="k">print</span> <span class="s">&quot;</span><span class="si">%0.2f</span><span class="s">&quot;</span> <span class="o">%</span> <span class="n">bruto_kosten_base_2017</span>
-<span class="k">print</span> <span class="s">&quot;</span><span class="si">%0.2f</span><span class="s">&quot;</span> <span class="o">%</span> <span class="n">bruto_kosten_0_2017</span>
-<span class="k">print</span> <span class="s">&quot;</span><span class="si">%0.2f</span><span class="s">&quot;</span> <span class="o">%</span> <span class="n">totaal_betaald_ER_base_2017</span>
-<span class="k">print</span> <span class="s">&quot;</span><span class="si">%0.2f</span><span class="s">&quot;</span> <span class="o">%</span> <span class="n">totaal_betaald_ER_0_2017</span>
-<span class="k">print</span> <span class="s">&quot;</span><span class="si">%0.2f</span><span class="s">&quot;</span> <span class="o">%</span> <span class="n">netto_kosten_base_2017</span>
-<span class="k">print</span> <span class="s">&quot;</span><span class="si">%0.2f</span><span class="s">&quot;</span> <span class="o">%</span> <span class="n">netto_kosten_0_2017</span>
-<span class="k">print</span> <span class="s">&quot;</span><span class="si">%0.2f</span><span class="s">&quot;</span> <span class="o">%</span> <span class="n">remgeld_effect_2017</span>
-</pre></div>
-
-</div>
-</div>
-</div>
-
-<div class="output_wrapper">
-<div class="output">
-
-
-<div class="output_area"><div class="prompt"></div>
-<div class="output_subarea output_stream output_stdout output_text">
-<pre>
-33610401044.91
-34236559493.28
-3087195055.62
-0.00
-30523205989.29
-34236559493.28
--626158448.37
-
-</pre>
-</div>
-</div>
-
-</div>
-</div>
-
-</div>
-<div class="cell border-box-sizing code_cell rendered">
-<div class="input">
-<div class="prompt input_prompt">
-In&nbsp;[32]:
-</div>
-<div class="inner_cell">
-    <div class="input_area">
-<div class="highlight"><pre> 
+<div class="highlight"><pre><span class="c"># [ 0.91681935  0.51998463  0.10547745] 67395719.3619</span>
+<span class="c"># x_opt = [ 0.91681935,  0.51998463,  0.10547745]</span>
+<span class="n">alpha</span><span class="p">,</span> <span class="n">a</span><span class="p">,</span> <span class="n">b</span><span class="p">,</span> <span class="n">c</span> <span class="o">=</span> <span class="n">x_opt</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">x_opt</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">x_opt</span><span class="p">[</span><span class="mi">2</span><span class="p">],</span> <span class="n">x_opt</span><span class="p">[</span><span class="mi">3</span><span class="p">]</span>
+<span class="n">x_predicted</span> <span class="o">=</span> <span class="n">vector_expenditures</span><span class="p">(</span><span class="n">bar_z</span><span class="p">(</span><span class="n">a</span><span class="p">,</span><span class="n">b</span><span class="p">,</span><span class="n">c</span><span class="p">),</span><span class="n">alpha</span><span class="p">,</span><span class="k">lambda</span> <span class="n">x</span><span class="p">,</span> <span class="n">deduct</span> <span class="o">=</span> <span class="n">base_deductible</span><span class="p">:</span> <span class="n">t</span><span class="p">(</span><span class="n">x</span><span class="p">,</span><span class="n">deduct</span><span class="p">))</span>
 </pre></div>
 
 </div>
