@@ -1693,6 +1693,29 @@ div#notebook {
 </div>
 <div class="inner_cell">
 <div class="text_cell_render border-box-sizing rendered_html">
+<h1 id="question">Question</h1>
+<p>What would be the percentage reduction in Dutch health care expenditure if the deductible is doubled?</p>
+<h2 id="motivation">motivation</h2>
+<p>The Dutch government is worried about both the level and the growth of health care expenditures covered by mandatory basic insurance. Demand side cost sharing is one of the policies it is considering to reduce (the growth in) health care expenditures. In 2015 this deductible equals <a href="http://www.rijksoverheid.nl/onderwerpen/zorgverzekering/eigen-risico-zorgverzekering">375 euro</a>. What would happen to health care expenditure (covered by basic insurance) if the deductible is doubled?</p>
+<h2 id="method">method</h2>
+<p>We have been able to find <a href="#data">data</a> for 2013 when the deductible was 350 euro. Using this data and the elasticity of $-0.2$ as it is found in the <a href="http://www.rand.org/health/projects/hie.html">RAND Health Insurance Experiment</a>, we calibrate a simple model where an agent faces exogenous health care expenditure (like breaking a leg) and can decide endogenously to consume more health care. With this calibrated model, we simulate the effect of doubling the deductible from 375 to 750 euro.</p>
+<h2 id="answer">answer</h2>
+<p>Our <a href="#conclusion">conclusion</a> is that increasing the deductible in 2013 from 375 to 750 reduces health care expenditure by 3.0%. Assuming that doubling the deductible in 2015 leads to similar effects, the answer to our question is 3.0%.</p>
+<h2 id="main-assumptions">main assumptions</h2>
+<ul>
+<li>we use a <a href="#elasticity">utility function</a> with a constant price elasticity, that is the elasticity is constant across spending categories;</li>
+<li>we take the elasticity from the <a href="http://www.rand.org/health/projects/hie.html">RAND Health Insurance Experiment</a> that was done in the US in the 70&#39;s and 80&#39;s and apply this to the Netherlands in 2015;</li>
+<li>we assume that agents can perfectly predict in which spending category they will end up</li>
+</ul>
+<p>We do some <a href="#robustness">sensitivity analysis</a> with respect to the value of the elasticity to address the second main assumption.</p>
+</div>
+</div>
+</div>
+<div class="cell border-box-sizing text_cell rendered">
+<div class="prompt input_prompt">
+</div>
+<div class="inner_cell">
+<div class="text_cell_render border-box-sizing rendered_html">
 <h1 id="importing-libraries-and-data">Importing libraries and data</h1>
 <p>We use the following python packages to run the model. </p>
 </div>
@@ -1726,8 +1749,9 @@ In&nbsp;[1]:
 </div>
 <div class="inner_cell">
 <div class="text_cell_render border-box-sizing rendered_html">
-<p>The data that we use, come from page 13 in <a href="http://www.cpb.nl/sites/default/files/publicaties/bijlagen/bijlage-4-toelichting-op-de-effecten-van-eigen-betalingen-de-zorg.pdf">CPB report</a>.</p>
-<p>The data comprise health care expenditures for mandatory basic insurance in 2013 for all insured Dutch citizens of at least 18 years old. These are expenditures that fall under the deductible. For instance, expenditures on primary physicians and maternity care are excluded, as these are excluded from the deductible. Also, there is no deductible for people below 18 years.</p>
+<h2 id="data">data</h2>
+<p>The data that we use, come from page 13 in this <a href="http://www.cpb.nl/sites/default/files/publicaties/bijlagen/bijlage-4-toelichting-op-de-effecten-van-eigen-betalingen-de-zorg.pdf">CPB report</a>.</p>
+<p>The data comprise health care expenditures for mandatory basic insurance in 2013 for all insured Dutch citizens of at least 18 years old. These are expenditures that fall under the deductible. For instance, expenditures on primary physicians and maternity care are excluded, as these are excluded from the deductible. All excluded categories can be found <a href="http://www.rijksoverheid.nl/onderwerpen/zorgverzekering/vraag-en-antwoord/hoe-hoog-is-het-eigen-risico-in-de-zorgverzekering.html">here</a>. Also, there is no deductible for people <a href="http://www.rijksoverheid.nl/onderwerpen/zorgverzekering/eigen-risico-zorgverzekering">below 18 years</a>.</p>
 <p>Health care expenditures per insured person are given for 20 categories, so called <em>vignitiles</em> based on average total health care expenditure in ascending order. Each category comprises about 600,000 individuals. </p>
 </div>
 </div>
@@ -1952,7 +1976,7 @@ wYzCmnP4AAAAAElFTkSuQmCC
 </div>
 <div class="inner_cell">
 <div class="text_cell_render border-box-sizing rendered_html">
-<p>The 20 vignitiles represent 20 persons in terms of health care expenditure that we use for our model. These 20 <em>individuals</em> represent the whole health care sector (Zvw) for which the deductible applies. This means that health care provided by GP&#39;s and maternity care are excluded. In this basic model, other consumer or patient characteristics are not taken into account. </p>
+<p>The 20 vignitiles represent 20 persons in terms of health care expenditure that we use for our model. These 20 <em>individuals</em> represent the whole health care sector (Zvw) for which the deductible applies.</p>
 </div>
 </div>
 </div>
@@ -1997,22 +2021,6 @@ t(z) = \begin{cases}
 z &amp; \text{ if } z \leq 350 \\
 350 &amp; \text{ if } z &gt; 350
 \end{cases}
-$$
-And an agent solves
-$$
-\max_z u(z) - t(z)
-$$</p>
-<p>An agent who knows that he will spend more than 350, faces a price equal to zero while $u'(z)&gt;0$ for all $z \geq 0$. Hence, he would like to spend $z = +\infty$. To keep the optimization well specified, we make the following assumptions.</p>
-<p>First, each agent knows her category $i$ (out of the 20 categories above) perfectly at the start of the period. Second, each category $i$ is characterized by a max. expenditure $\bar z_i$. Intuitively, if you stay healthy the whole year, you cannot spend 10.000 euro on health care. Although there is discretion at the margin, it is not possible to generate any expenditure independently from health status.</p>
-<p>Hence, our model has 20 agent types and a type $i$ is characterised by the max. expenditure $\bar z_i$. We will calibrate $\bar z_i$. Admittedly, assuming that each type perfectly knows his type is extreme. However, it seems a good starting point.</p>
-<p>An alternative approach here can be the following. Although the expenditures on health are fully reimbursed (for $z \geq 350$) there are other costs involved in visiting a provider. One has to travel to the physician, take a day off from work, undergoing examination/treatment generates dis-utility etc. Such considerations can also stop people from spending $z =+\infty$.</p>
-<p>Agent $i$&#39;s optimization problem now becomes
-$$
-\max_{z \leq \bar z_i} u(z) - t(z)
-$$</p>
-<p>We use the following specification for $z_i$:
-$$
-z_i = ???
 $$</p>
 </div>
 </div>
@@ -2020,7 +2028,7 @@ $$</p>
 <div class="cell border-box-sizing code_cell rendered">
 <div class="input">
 <div class="prompt input_prompt">
-In&nbsp;[87]:
+In&nbsp;[6]:
 </div>
 <div class="inner_cell">
     <div class="input_area">
@@ -2030,11 +2038,6 @@ In&nbsp;[87]:
    <span class="k">else</span><span class="p">:</span> 
      <span class="n">t</span> <span class="o">=</span> <span class="n">deduct</span>
    <span class="k">return</span> <span class="n">t</span>
-
-        
-<span class="k">def</span> <span class="nf">bar_z</span><span class="p">(</span><span class="n">a</span><span class="p">,</span><span class="n">b</span><span class="p">,</span><span class="n">c</span><span class="p">):</span>
-   <span class="n">z</span> <span class="o">=</span> <span class="p">[</span><span class="n">a</span><span class="o">*</span><span class="n">i</span><span class="o">**</span><span class="mi">2</span><span class="o">+</span><span class="n">b</span><span class="o">*</span><span class="n">i</span><span class="o">+</span><span class="n">c</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">categories</span><span class="p">]</span> 
-   <span class="k">return</span> <span class="n">z</span>
 </pre></div>
 
 </div>
@@ -2048,23 +2051,57 @@ In&nbsp;[87]:
 <div class="inner_cell">
 <div class="text_cell_render border-box-sizing rendered_html">
 <h1 id="health-care-consumption">Health care consumption</h1>
+<p>We assume that an agent&#39;s health care expenditure consists of two parts: exogenous health care consumption, denoted $y$, and endogenous consumption, $z$. Further, we need to specify a max. expenditure that an agent can choose. Indeed, if an agent spends more than the deductible 350, health care is free at the margin while $u'&gt;0$.</p>
+<h2 id="exogenous-health-care-expenditure">exogenous health care expenditure</h2>
+<p>We assume that an agent in category $i$ has health care costs $y_{i}$
+that are beyond her control. If you break a leg, you are taken to hospital
+with an ambulance and &quot;plastered up&quot;. There is no discretion on the patient&#39;s side.</p>
+<p>The essential feature of $y_{i}$ is that it cannot be affected by demand side incentives.
+This does not mean that $y_i$ is necessarily efficient (there can be
+supply-induced demand). It only means that increasing co-payments, deductibles etc.
+will not affect $y_{i}$. We call this the exogenous part of health care expenditure for the patient.</p>
+<h2 id="max-health-care-expenditure">max. health care expenditure</h2>
+<p>The discretionary or endogenous part of health care consumption is denoted $z_i$ and we assume that there is a finite upperbound $\bar z_i$. This upperbound makes sense intuitively. A patient cannot simply decide
+to undergo operations for one million euros. Depending on the disease there
+is a max. amount of money that the patient can make physicians spend on
+her. </p>
+<p>Further, we assume that an agent in category $i$ knows that she is in category $i$. Hence, agent $i$ solves</p>
+<p>$$
+\max_{z_i \leq \bar z_i} \{u(y_i+z_i)-t(y_i+z_i)\}
+$$</p>
+<p>The fact that $z_{i}$ is chosen by the patient does not mean that it is inefficient. Even if the patient has to pay $z_{i}$ herself, she may still decide to have $z_{i}&gt;0$.</p>
+<p>Finally, we assume that there is a link between $\bar z_i$ and $y_i$. The higher $y_i$, the more room there is for discretionary expenditure $z_i$. If you are healthy and have low costs $y_i$, it is hard to generate a high health care bill. If you are already being treated with high $y_i$, you can ask for additional tests and treatments. In particular, we assume the functional form for this relation:
+$$
+\overline{z}_i = \bar{z}y_i^2
+$$
+where we calibrate $\bar{z}$. </p>
+<p>Finally, we assume a distribution for exogenous expenditure $y_i$. A simple distribution is the exponential distribution. This distribution is governed by one parameter $\zeta$:
+$$
+f(y) = \zeta e^{-\zeta y}
+$$
+We need to identify the 1/20-th parts of this distribution. We do this as follows.</p>
+<p>First, because of the indexing of arrays in python, we use $y_0,...,y_{19}$. Let $y_0$ denote the point where $F(y_0)=1/20∗1/2$: mid-point of the histogram bar containing the lowest 5 percent of the distribution. Hence, we have $F(y_i)=i/20+1/20∗1/2$. Or equivalently, $y_i=−1/\zeta \ln(1−i/20 −1/2 1/20)$ for $i=0,1,...,19$.</p>
 </div>
 </div>
 </div>
 <div class="cell border-box-sizing code_cell rendered">
 <div class="input">
 <div class="prompt input_prompt">
-In&nbsp;[88]:
+In&nbsp;[7]:
 </div>
 <div class="inner_cell">
     <div class="input_area">
-<div class="highlight"><pre><span class="k">def</span> <span class="nf">health_consumption</span><span class="p">(</span><span class="n">i</span><span class="p">,</span><span class="n">z_bar</span><span class="p">,</span><span class="n">alpha</span><span class="p">,</span><span class="n">t</span><span class="p">,</span><span class="n">gamma</span><span class="o">=</span><span class="mf">0.8</span><span class="p">):</span>
-    <span class="n">cons</span> <span class="o">=</span> <span class="n">optimize</span><span class="o">.</span><span class="n">brute</span><span class="p">(</span><span class="k">lambda</span> <span class="n">z</span><span class="p">:</span> <span class="o">-</span><span class="p">(</span><span class="n">alpha</span><span class="o">*</span><span class="n">z</span><span class="o">**</span><span class="n">gamma</span><span class="o">-</span><span class="n">t</span><span class="p">(</span><span class="n">z</span><span class="p">)),</span> <span class="p">((</span><span class="mi">0</span><span class="p">,</span><span class="n">z_bar</span><span class="p">[</span><span class="n">i</span><span class="p">]),),</span> <span class="n">finish</span> <span class="o">=</span> <span class="bp">None</span><span class="p">)</span> 
-                                                  <span class="c"># This is the routine that finds the z which maximizes patient&#39;s utility</span>
-    <span class="k">return</span> <span class="n">cons</span>
+<div class="highlight"><pre><span class="k">def</span> <span class="nf">y</span><span class="p">(</span><span class="n">zeta</span><span class="p">):</span>
+   <span class="n">y</span> <span class="o">=</span> <span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="o">/</span><span class="n">zeta</span><span class="o">*</span><span class="n">log</span><span class="p">(</span><span class="mi">1</span><span class="o">-</span><span class="n">i</span><span class="o">/</span><span class="n">number_categories</span><span class="o">-</span><span class="mi">1</span><span class="o">/</span><span class="mi">2</span><span class="o">*</span><span class="mi">1</span><span class="o">/</span><span class="n">number_categories</span><span class="p">)</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">categories</span><span class="p">]</span>
+   <span class="k">return</span> <span class="n">y</span>
 
-<span class="k">def</span> <span class="nf">vector_expenditures</span><span class="p">(</span><span class="n">z_bar</span><span class="p">,</span><span class="n">alpha</span><span class="p">,</span><span class="n">t</span><span class="p">,</span><span class="n">gamma</span><span class="o">=</span><span class="mf">0.8</span><span class="p">):</span> 
-    <span class="n">z</span> <span class="o">=</span> <span class="p">[</span><span class="n">health_consumption</span><span class="p">(</span><span class="n">i</span><span class="p">,</span><span class="n">z_bar</span><span class="p">,</span><span class="n">alpha</span><span class="p">,</span><span class="n">t</span><span class="p">)</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">categories</span><span class="p">]</span>
+<span class="k">def</span> <span class="nf">health_consumption</span><span class="p">(</span><span class="n">i</span><span class="p">,</span><span class="n">zeta</span><span class="p">,</span><span class="n">z_bar</span><span class="p">,</span><span class="n">alpha</span><span class="p">,</span><span class="n">t</span><span class="p">,</span><span class="n">gamma</span><span class="o">=</span><span class="mf">0.8</span><span class="p">):</span> <span class="c"># total health care consumption of type i</span>
+    <span class="n">cons</span> <span class="o">=</span> <span class="n">optimize</span><span class="o">.</span><span class="n">brute</span><span class="p">(</span><span class="k">lambda</span> <span class="n">z</span><span class="p">:</span> <span class="o">-</span><span class="p">(</span><span class="n">alpha</span><span class="o">*</span><span class="p">(</span><span class="n">z</span><span class="o">+</span><span class="n">y</span><span class="p">(</span><span class="n">zeta</span><span class="p">)[</span><span class="n">i</span><span class="p">])</span><span class="o">**</span><span class="n">gamma</span><span class="o">-</span><span class="n">t</span><span class="p">(</span><span class="n">z</span><span class="o">+</span><span class="n">y</span><span class="p">(</span><span class="n">zeta</span><span class="p">)[</span><span class="n">i</span><span class="p">])),</span> <span class="p">((</span><span class="mi">0</span><span class="p">,</span><span class="n">z_bar</span><span class="o">*</span><span class="n">y</span><span class="p">(</span><span class="n">zeta</span><span class="p">)[</span><span class="n">i</span><span class="p">]</span><span class="o">**</span><span class="mi">2</span><span class="p">),),</span> <span class="n">finish</span> <span class="o">=</span> <span class="bp">None</span><span class="p">)</span> 
+                                                  <span class="c"># This is the routine that finds the z which maximizes patient&#39;s utility</span>
+    <span class="k">return</span> <span class="n">cons</span><span class="o">+</span><span class="n">y</span><span class="p">(</span><span class="n">zeta</span><span class="p">)[</span><span class="n">i</span><span class="p">]</span>
+
+<span class="k">def</span> <span class="nf">vector_expenditures</span><span class="p">(</span><span class="n">zeta</span><span class="p">,</span><span class="n">z_bar</span><span class="p">,</span><span class="n">alpha</span><span class="p">,</span><span class="n">t</span><span class="p">,</span><span class="n">gamma</span><span class="o">=</span><span class="mf">0.8</span><span class="p">):</span> 
+    <span class="n">z</span> <span class="o">=</span> <span class="p">[</span><span class="n">health_consumption</span><span class="p">(</span><span class="n">i</span><span class="p">,</span><span class="n">zeta</span><span class="p">,</span><span class="n">z_bar</span><span class="p">,</span><span class="n">alpha</span><span class="p">,</span><span class="n">t</span><span class="p">)</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">categories</span><span class="p">]</span>
     <span class="k">return</span> <span class="n">z</span>
 </pre></div>
 
@@ -2079,20 +2116,21 @@ In&nbsp;[88]:
 <div class="inner_cell">
 <div class="text_cell_render border-box-sizing rendered_html">
 <h1 id="calibration">Calibration</h1>
-<p>Here we specify the function that we would like to minimize to get the best fit. This objective function consists of two parts. First, we fit for each category the predicted spending of this category with the VWS data. Second, we our data on elasticities by Van Vliet (2004). We use the three datapoints from Table 1 above (alternative deductible 0, 1, 2 and 3) This we fit as well.</p>
+<p>We need to find values for the parameters: $\alpha,\gamma, \zeta, \bar z$. As explained <a href="#elasticity">above</a>, we set $\gamma = 0.8$.</p>
+<p>Here we specify the function <code>criterion</code> that we would like to minimize to get the best fit. We take the sum of squared differences between the actual values of $x_i$ in the <a href="#data">data</a> and consumption predicted by the function <code>health_consumption</code>.</p>
 </div>
 </div>
 </div>
 <div class="cell border-box-sizing code_cell rendered">
 <div class="input">
 <div class="prompt input_prompt">
-In&nbsp;[89]:
+In&nbsp;[8]:
 </div>
 <div class="inner_cell">
     <div class="input_area">
 <div class="highlight"><pre><span class="n">base_deductible</span> <span class="o">=</span> <span class="mf">350.0</span>
-<span class="k">def</span> <span class="nf">criterion</span><span class="p">(</span><span class="n">par</span><span class="p">):</span>         <span class="c"># Vector par = alpha, a, b,c</span>
-    <span class="n">predicted_cons</span> <span class="o">=</span> <span class="n">vector_expenditures</span><span class="p">(</span><span class="n">bar_z</span><span class="p">(</span><span class="n">par</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span><span class="n">par</span><span class="p">[</span><span class="mi">2</span><span class="p">],</span><span class="n">par</span><span class="p">[</span><span class="mi">3</span><span class="p">]),</span><span class="n">par</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span><span class="k">lambda</span> <span class="n">x</span><span class="p">,</span> <span class="n">deduct</span> <span class="o">=</span> <span class="n">base_deductible</span><span class="p">:</span> <span class="n">t</span><span class="p">(</span><span class="n">x</span><span class="p">,</span><span class="n">deduct</span><span class="p">))</span>
+<span class="k">def</span> <span class="nf">criterion</span><span class="p">(</span><span class="n">par</span><span class="p">):</span>         <span class="c"># Vector par = zeta, z_bar, alpha</span>
+    <span class="n">predicted_cons</span> <span class="o">=</span> <span class="n">vector_expenditures</span><span class="p">(</span><span class="n">par</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span><span class="n">par</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span><span class="n">par</span><span class="p">[</span><span class="mi">2</span><span class="p">],</span><span class="k">lambda</span> <span class="n">x</span><span class="p">,</span> <span class="n">deduct</span> <span class="o">=</span> <span class="n">base_deductible</span><span class="p">:</span> <span class="n">t</span><span class="p">(</span><span class="n">x</span><span class="p">,</span><span class="n">deduct</span><span class="p">))</span>
     <span class="n">difference</span> <span class="o">=</span> <span class="nb">map</span><span class="p">(</span><span class="n">sub</span><span class="p">,</span> <span class="n">predicted_cons</span><span class="p">[:</span><span class="n">number_categories</span><span class="p">],</span><span class="n">x</span><span class="p">[:</span><span class="n">number_categories</span><span class="p">])</span> <span class="c">### </span>
     <span class="k">return</span> <span class="nb">sum</span><span class="p">(</span><span class="n">array</span><span class="p">(</span><span class="n">difference</span><span class="p">)</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span>
 </pre></div>
@@ -2114,12 +2152,14 @@ In&nbsp;[89]:
 <div class="cell border-box-sizing code_cell rendered">
 <div class="input">
 <div class="prompt input_prompt">
-In&nbsp;[95]:
+In&nbsp;[9]:
 </div>
 <div class="inner_cell">
     <div class="input_area">
-<div class="highlight"><pre><span class="n">f</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">criterion</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
-<span class="n">p</span> <span class="o">=</span> <span class="n">GLP</span><span class="p">(</span><span class="n">f</span><span class="p">,</span> <span class="n">lb</span> <span class="o">=</span> <span class="p">[</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">],</span>  <span class="n">ub</span> <span class="o">=</span> <span class="p">[</span><span class="mf">10.0</span><span class="p">,</span> <span class="mf">100.0</span><span class="p">,</span> <span class="mf">100.0</span><span class="p">,</span> <span class="mf">10.0</span><span class="p">],</span>  <span class="n">maxIter</span> <span class="o">=</span> <span class="mf">1e3</span><span class="p">,</span>  <span class="n">maxFunEvals</span> <span class="o">=</span> <span class="mf">1e5</span><span class="p">)</span> <span class="c">#,  maxTime = 20,  maxCPUTime = 20)</span>
+<div class="highlight"><pre><span class="c"># if you didn&#39;t change anything above and want to save some time, you can skip this cell and run the next one</span>
+
+<span class="n">f</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">criterion</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+<span class="n">p</span> <span class="o">=</span> <span class="n">GLP</span><span class="p">(</span><span class="n">f</span><span class="p">,</span> <span class="n">lb</span> <span class="o">=</span> <span class="p">[</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">],</span>  <span class="n">ub</span> <span class="o">=</span> <span class="p">[</span><span class="mf">1.0</span><span class="p">,</span> <span class="mf">10.0</span><span class="p">,</span> <span class="mf">10.0</span><span class="p">],</span>  <span class="n">maxIter</span> <span class="o">=</span> <span class="mf">1e3</span><span class="p">,</span>  <span class="n">maxFunEvals</span> <span class="o">=</span> <span class="mf">1e5</span><span class="p">)</span> <span class="c">#,  maxTime = 20,  maxCPUTime = 20)</span>
 <span class="n">r</span> <span class="o">=</span> <span class="n">p</span><span class="o">.</span><span class="n">solve</span><span class="p">(</span><span class="s">&#39;de&#39;</span><span class="p">,</span> <span class="n">plot</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
 <span class="n">x_opt</span><span class="p">,</span>  <span class="n">f_opt</span> <span class="o">=</span> <span class="n">r</span><span class="o">.</span><span class="n">xf</span><span class="p">,</span>  <span class="n">r</span><span class="o">.</span><span class="n">ff</span>
 <span class="k">print</span> <span class="n">x_opt</span><span class="p">,</span> <span class="n">f_opt</span>
@@ -2139,112 +2179,19 @@ In&nbsp;[95]:
 -----------------------------------------------------
 solver: de   problem: unnamed
  iter    objFunVal   
-    0  7.643e+08 
-   10  2.217e+08 
-   20  2.217e+08 
-   30  2.072e+08 
-   40  2.072e+08 
-   50  2.001e+08 
-   60  1.931e+08 
-   70  1.869e+08 
-   80  1.825e+08 
-   90  1.808e+08 
-  100  1.783e+08 
-  110  1.735e+08 
-  120  1.700e+08 
-  130  1.667e+08 
-  140  1.660e+08 
-  150  1.649e+08 
-  160  1.632e+08 
-  170  1.609e+08 
-  180  1.600e+08 
-  190  1.578e+08 
-  200  1.572e+08 
-  210  1.552e+08 
-  220  1.528e+08 
-  230  1.505e+08 
-  240  1.491e+08 
-  250  1.474e+08 
-  260  1.461e+08 
-  270  1.456e+08 
-  280  1.450e+08 
-  290  1.445e+08 
-  300  1.443e+08 
-  310  1.440e+08 
-  320  1.437e+08 
-  330  1.435e+08 
-  340  1.432e+08 
-  350  1.429e+08 
-  360  1.426e+08 
-  370  1.425e+08 
-  380  1.422e+08 
-  390  1.418e+08 
-  400  1.417e+08 
-  410  1.416e+08 
-  420  1.411e+08 
-  430  1.408e+08 
-  440  1.401e+08 
-  450  1.396e+08 
-  460  1.389e+08 
-  470  1.385e+08 
-  480  1.382e+08 
-  490  1.379e+08 
-  500  1.375e+08 
-  510  1.365e+08 
-  520  1.351e+08 
-  530  1.321e+08 
-  540  1.294e+08 
-  550  1.280e+08 
-  560  1.267e+08 
-  570  1.255e+08 
-  580  1.246e+08 
-  590  1.242e+08 
-  600  1.240e+08 
-  610  1.238e+08 
-  620  1.237e+08 
-  630  1.236e+08 
-  640  1.235e+08 
-  650  1.235e+08 
-  660  1.234e+08 
-  670  1.234e+08 
-  680  1.234e+08 
-  690  1.233e+08 
-  700  1.233e+08 
-  710  1.232e+08 
-  720  1.232e+08 
-  730  1.231e+08 
-  740  1.231e+08 
-  750  1.230e+08 
-  760  1.229e+08 
-  770  1.228e+08 
-  780  1.228e+08 
-  790  1.227e+08 
-  800  1.226e+08 
-  810  1.224e+08 
-  820  1.223e+08 
-  830  1.221e+08 
-  840  1.219e+08 
-  850  1.217e+08 
-  860  1.216e+08 
-  870  1.213e+08 
-  880  1.211e+08 
-  890  1.210e+08 
-  900  1.209e+08 
-  910  1.209e+08 
-  920  1.209e+08 
-  930  1.208e+08 
-  940  1.208e+08 
-  950  1.208e+08 
-  960  1.208e+08 
-  970  1.207e+08 
-  980  1.207e+08 
-  990  1.207e+08 
- 1000  1.206e+08 
- 1001  1.206e+08 
-istop: -7(Max Iter has been reached)
-Solver:   Time Elapsed = 256.51 	CPU Time Elapsed = 256.756994
-objFunValue: 1.2063765e+08 (feasible, MaxResidual = 3.79243e-07)
-[   0.13814687   47.81347668  100.00000038   10.0000003 ] 120637652.95
+    0  6.976e+08 
+   10  4.107e+07 
+   20  4.101e+07 
+   30  4.095e+07 
+   40  4.094e+07 
+   50  4.094e+07 
+   60  4.094e+07 
+   70  4.094e+07 
+   72  4.094e+07 
+istop: 11(Non-Success Number &gt; maxNonSuccess = 15)
+Solver:   Time Elapsed = 155.0 	CPU Time Elapsed = 155.885248
+objFunValue: 40936743 (feasible, MaxResidual = 0)
+[ 0.07941598  9.96274091  3.2098035 ] 40936743.1121
 
 </pre>
 </div>
@@ -2257,20 +2204,437 @@ objFunValue: 1.2063765e+08 (feasible, MaxResidual = 3.79243e-07)
 <div class="cell border-box-sizing code_cell rendered">
 <div class="input">
 <div class="prompt input_prompt">
-In&nbsp;[96]:
+In&nbsp;[13]:
 </div>
 <div class="inner_cell">
     <div class="input_area">
-<div class="highlight"><pre><span class="c"># [ 0.91681935  0.51998463  0.10547745] 67395719.3619</span>
-<span class="c"># x_opt = [ 0.91681935,  0.51998463,  0.10547745]</span>
-<span class="n">alpha</span><span class="p">,</span> <span class="n">a</span><span class="p">,</span> <span class="n">b</span><span class="p">,</span> <span class="n">c</span> <span class="o">=</span> <span class="n">x_opt</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">x_opt</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">x_opt</span><span class="p">[</span><span class="mi">2</span><span class="p">],</span> <span class="n">x_opt</span><span class="p">[</span><span class="mi">3</span><span class="p">]</span>
-<span class="n">x_predicted</span> <span class="o">=</span> <span class="n">vector_expenditures</span><span class="p">(</span><span class="n">bar_z</span><span class="p">(</span><span class="n">a</span><span class="p">,</span><span class="n">b</span><span class="p">,</span><span class="n">c</span><span class="p">),</span><span class="n">alpha</span><span class="p">,</span><span class="k">lambda</span> <span class="n">x</span><span class="p">,</span> <span class="n">deduct</span> <span class="o">=</span> <span class="n">base_deductible</span><span class="p">:</span> <span class="n">t</span><span class="p">(</span><span class="n">x</span><span class="p">,</span><span class="n">deduct</span><span class="p">))</span>
+<div class="highlight"><pre><span class="c"># [ 0.07941598  9.96274091  3.2098035 ] 40936743.1121</span>
+<span class="n">x_opt</span> <span class="o">=</span> <span class="p">[</span> <span class="mf">0.07941598</span><span class="p">,</span>  <span class="mf">9.96274091</span><span class="p">,</span>  <span class="mf">3.2098035</span> <span class="p">]</span>
+<span class="n">zeta</span><span class="p">,</span> <span class="n">z_bar</span><span class="p">,</span> <span class="n">alpha</span> <span class="o">=</span> <span class="n">x_opt</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">x_opt</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">x_opt</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span>
+<span class="n">x_predicted</span> <span class="o">=</span> <span class="n">vector_expenditures</span><span class="p">(</span><span class="n">zeta</span><span class="p">,</span><span class="n">z_bar</span><span class="p">,</span><span class="n">alpha</span><span class="p">,</span><span class="k">lambda</span> <span class="n">x</span><span class="p">,</span> <span class="n">deduct</span> <span class="o">=</span> <span class="n">base_deductible</span><span class="p">:</span> <span class="n">t</span><span class="p">(</span><span class="n">x</span><span class="p">,</span><span class="n">deduct</span><span class="p">))</span>
 </pre></div>
 
 </div>
 </div>
 </div>
 
+</div>
+<div class="cell border-box-sizing text_cell rendered">
+<div class="prompt input_prompt">
+</div>
+<div class="inner_cell">
+<div class="text_cell_render border-box-sizing rendered_html">
+<h1 id="how-good-is-the-fit-">How good is the fit?</h1>
+<p>Now that we have calibrated the parameters, we can compare the observations $x_i$ with our predicted consumption. Figure 2 shows $x_i$ in red (as in figure 1) and our prediction in blue.</p>
+</div>
+</div>
+</div>
+<div class="cell border-box-sizing code_cell rendered">
+<div class="input">
+<div class="prompt input_prompt">
+In&nbsp;[14]:
+</div>
+<div class="inner_cell">
+    <div class="input_area">
+<div class="highlight"><pre><span class="n">plt</span><span class="o">.</span><span class="n">clf</span><span class="p">()</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="n">number_categories</span><span class="o">+</span><span class="mi">1</span><span class="p">),</span><span class="n">x</span><span class="p">[:</span><span class="n">number_categories</span><span class="p">],</span><span class="s">&#39;ro&#39;</span><span class="p">)</span>
+
+<span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="n">number_categories</span><span class="o">+</span><span class="mi">1</span><span class="p">),</span><span class="n">x_predicted</span><span class="p">,</span><span class="s">&#39;bo&#39;</span><span class="p">)</span>
+
+<span class="n">plt</span><span class="o">.</span><span class="n">ylabel</span><span class="p">(</span><span class="s">&#39;expenditure&#39;</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">xlabel</span><span class="p">(</span><span class="s">&#39;categories&#39;</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">axis</span><span class="p">([</span><span class="mf">0.5</span><span class="p">,</span><span class="n">number_categories</span><span class="o">+</span><span class="mf">0.5</span><span class="p">,</span><span class="o">-</span><span class="mi">90</span><span class="p">,</span><span class="mi">26000</span><span class="p">])</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">title</span><span class="p">(</span><span class="s">&#39;Figure 2: Average expenditure per category&#39;</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">savefig</span><span class="p">(</span><span class="s">&#39;predicted_expenditure.png&#39;</span><span class="p">)</span>
+</pre></div>
+
+</div>
+</div>
+</div>
+
+<div class="output_wrapper">
+<div class="output">
+
+
+<div class="output_area"><div class="prompt"></div>
+
+
+<div class="output_png output_subarea ">
+<img src="data:image/png;base64,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
+"
+>
+</div>
+
+</div>
+
+</div>
+</div>
+
+</div>
+<div class="cell border-box-sizing text_cell rendered">
+<div class="prompt input_prompt">
+</div>
+<div class="inner_cell">
+<div class="text_cell_render border-box-sizing rendered_html">
+<p>Clearly, the fit is not perfect. But it does not seem unreasonable either. The biggest differences can be observed for categories 15-20. Category 15 spends already more than 1500 euro. Hence an increase in deductible from 375 to 750 is unlikely to change the behaviour in these categories. In this sense, the mismatch does not seem so crucial for these categories. On the other hand, there clearly is scope for improvement.</p>
+</div>
+</div>
+</div>
+<div class="cell border-box-sizing text_cell rendered">
+<div class="prompt input_prompt">
+</div>
+<div class="inner_cell">
+<div class="text_cell_render border-box-sizing rendered_html">
+<h1 id="conclusion">Conclusion</h1>
+<p>Given the calibrated parameters that we have, we can now answer our <a href="#question">question</a>. We calculate the total predicted expenditures with a deductible of 375, denoted <code>x_375</code>, and with 750, <code>x_750</code>. Then we calculate the percentage change, $(x_{750}-x_{375})/x_{375}$. We find that health care expenditure falls by 3.0%.</p>
+</div>
+</div>
+</div>
+<div class="cell border-box-sizing code_cell rendered">
+<div class="input">
+<div class="prompt input_prompt">
+In&nbsp;[15]:
+</div>
+<div class="inner_cell">
+    <div class="input_area">
+<div class="highlight"><pre><span class="n">x_375</span> <span class="o">=</span> <span class="n">vector_expenditures</span><span class="p">(</span><span class="n">zeta</span><span class="p">,</span><span class="n">z_bar</span><span class="p">,</span><span class="n">alpha</span><span class="p">,</span><span class="k">lambda</span> <span class="n">x</span><span class="p">,</span> <span class="n">deduct</span> <span class="o">=</span> <span class="mi">375</span><span class="p">:</span> <span class="n">t</span><span class="p">(</span><span class="n">x</span><span class="p">,</span><span class="n">deduct</span><span class="p">))</span>
+<span class="n">x_750</span> <span class="o">=</span> <span class="n">vector_expenditures</span><span class="p">(</span><span class="n">zeta</span><span class="p">,</span><span class="n">z_bar</span><span class="p">,</span><span class="n">alpha</span><span class="p">,</span><span class="k">lambda</span> <span class="n">x</span><span class="p">,</span> <span class="n">deduct</span> <span class="o">=</span> <span class="mi">750</span><span class="p">:</span> <span class="n">t</span><span class="p">(</span><span class="n">x</span><span class="p">,</span><span class="n">deduct</span><span class="p">))</span>
+<span class="k">print</span> <span class="p">(</span><span class="nb">sum</span><span class="p">(</span><span class="n">x_750</span><span class="p">)</span><span class="o">-</span><span class="nb">sum</span><span class="p">(</span><span class="n">x_375</span><span class="p">))</span><span class="o">/</span><span class="nb">sum</span><span class="p">(</span><span class="n">x_375</span><span class="p">)</span>
+</pre></div>
+
+</div>
+</div>
+</div>
+
+<div class="output_wrapper">
+<div class="output">
+
+
+<div class="output_area"><div class="prompt"></div>
+<div class="output_subarea output_stream output_stdout output_text">
+<pre>
+-0.0299579724574
+
+</pre>
+</div>
+</div>
+
+</div>
+</div>
+
+</div>
+<div class="cell border-box-sizing text_cell rendered">
+<div class="prompt input_prompt">
+</div>
+<div class="inner_cell">
+<div class="text_cell_render border-box-sizing rendered_html">
+<h1 id="robustness">Robustness</h1>
+<p>An important parameter in this analysis is the elasticity of health care demand, which translates into $\gamma$. We have worked 
+with $\gamma = 0.8$. To get an idea how sensitive the result is with respect to this parameter, we will also calculate the predicted reduction in health care expenditure for $\gamma = 0.7$ and $\gamma = 0.9$.</p>
+<p>Note that for each new value of $\gamma$ we also need to re-calibrate the other parameters. To do this, we define a function <code>result</code> with parameter $\gamma$. For each $\gamma$ it calibrates the parameters $\zeta, \bar z, \alpha$ and returns $(x_{750}-x_{375})/x_{375}$.</p>
+</div>
+</div>
+</div>
+<div class="cell border-box-sizing code_cell rendered">
+<div class="input">
+<div class="prompt input_prompt">
+In&nbsp;[19]:
+</div>
+<div class="inner_cell">
+    <div class="input_area">
+<div class="highlight"><pre><span class="k">def</span> <span class="nf">result</span><span class="p">(</span><span class="n">gamma</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">health_consumption</span><span class="p">(</span><span class="n">i</span><span class="p">,</span><span class="n">zeta</span><span class="p">,</span><span class="n">z_bar</span><span class="p">,</span><span class="n">alpha</span><span class="p">,</span><span class="n">t</span><span class="p">,</span><span class="n">gamma</span><span class="o">=</span><span class="n">gamma</span><span class="p">):</span> 
+        <span class="n">cons</span> <span class="o">=</span> <span class="n">optimize</span><span class="o">.</span><span class="n">brute</span><span class="p">(</span><span class="k">lambda</span> <span class="n">z</span><span class="p">:</span> <span class="o">-</span><span class="p">(</span><span class="n">alpha</span><span class="o">*</span><span class="p">(</span><span class="n">z</span><span class="o">+</span><span class="n">y</span><span class="p">(</span><span class="n">zeta</span><span class="p">)[</span><span class="n">i</span><span class="p">])</span><span class="o">**</span><span class="n">gamma</span><span class="o">-</span><span class="n">t</span><span class="p">(</span><span class="n">z</span><span class="o">+</span><span class="n">y</span><span class="p">(</span><span class="n">zeta</span><span class="p">)[</span><span class="n">i</span><span class="p">])),</span> <span class="p">((</span><span class="mi">0</span><span class="p">,</span><span class="n">z_bar</span><span class="o">*</span><span class="n">y</span><span class="p">(</span><span class="n">zeta</span><span class="p">)[</span><span class="n">i</span><span class="p">]</span><span class="o">**</span><span class="mi">2</span><span class="p">),),</span> <span class="n">finish</span> <span class="o">=</span> <span class="bp">None</span><span class="p">)</span> 
+        <span class="k">return</span> <span class="n">cons</span><span class="o">+</span><span class="n">y</span><span class="p">(</span><span class="n">zeta</span><span class="p">)[</span><span class="n">i</span><span class="p">]</span>
+
+    <span class="k">def</span> <span class="nf">vector_expenditures</span><span class="p">(</span><span class="n">zeta</span><span class="p">,</span><span class="n">z_bar</span><span class="p">,</span><span class="n">alpha</span><span class="p">,</span><span class="n">t</span><span class="p">,</span><span class="n">gamma</span><span class="o">=</span><span class="n">gamma</span><span class="p">):</span> 
+        <span class="n">z</span> <span class="o">=</span> <span class="p">[</span><span class="n">health_consumption</span><span class="p">(</span><span class="n">i</span><span class="p">,</span><span class="n">zeta</span><span class="p">,</span><span class="n">z_bar</span><span class="p">,</span><span class="n">alpha</span><span class="p">,</span><span class="n">t</span><span class="p">)</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">categories</span><span class="p">]</span>
+        <span class="k">return</span> <span class="n">z</span>
+    
+    <span class="k">def</span> <span class="nf">criterion</span><span class="p">(</span><span class="n">par</span><span class="p">):</span>         <span class="c"># Vector par = zeta, z_bar, alpha</span>
+       <span class="n">predicted_cons</span> <span class="o">=</span> <span class="n">vector_expenditures</span><span class="p">(</span><span class="n">par</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span><span class="n">par</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span><span class="n">par</span><span class="p">[</span><span class="mi">2</span><span class="p">],</span><span class="k">lambda</span> <span class="n">x</span><span class="p">,</span> <span class="n">deduct</span> <span class="o">=</span> <span class="n">base_deductible</span><span class="p">:</span> <span class="n">t</span><span class="p">(</span><span class="n">x</span><span class="p">,</span><span class="n">deduct</span><span class="p">))</span>
+       <span class="n">difference</span> <span class="o">=</span> <span class="nb">map</span><span class="p">(</span><span class="n">sub</span><span class="p">,</span> <span class="n">predicted_cons</span><span class="p">[:</span><span class="n">number_categories</span><span class="p">],</span><span class="n">x</span><span class="p">[:</span><span class="n">number_categories</span><span class="p">])</span> <span class="c">### </span>
+       <span class="k">return</span> <span class="nb">sum</span><span class="p">(</span><span class="n">array</span><span class="p">(</span><span class="n">difference</span><span class="p">)</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span>
+    
+    <span class="n">f</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">criterion</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+    <span class="n">p</span> <span class="o">=</span> <span class="n">GLP</span><span class="p">(</span><span class="n">f</span><span class="p">,</span> <span class="n">lb</span> <span class="o">=</span> <span class="p">[</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">],</span>  <span class="n">ub</span> <span class="o">=</span> <span class="p">[</span><span class="mf">1.0</span><span class="p">,</span> <span class="mf">10.0</span><span class="p">,</span> <span class="mf">10.0</span><span class="p">],</span>  <span class="n">maxIter</span> <span class="o">=</span> <span class="mf">1e3</span><span class="p">,</span>  <span class="n">maxFunEvals</span> <span class="o">=</span> <span class="mf">1e5</span><span class="p">)</span> <span class="c">#,  maxTime = 20,  maxCPUTime = 20)</span>
+    <span class="n">r</span> <span class="o">=</span> <span class="n">p</span><span class="o">.</span><span class="n">solve</span><span class="p">(</span><span class="s">&#39;de&#39;</span><span class="p">,</span> <span class="n">plot</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+    <span class="n">x_opt</span> <span class="o">=</span> <span class="n">r</span><span class="o">.</span><span class="n">xf</span>
+    
+    <span class="n">x_375</span> <span class="o">=</span> <span class="n">vector_expenditures</span><span class="p">(</span><span class="n">zeta</span><span class="p">,</span><span class="n">z_bar</span><span class="p">,</span><span class="n">alpha</span><span class="p">,</span><span class="k">lambda</span> <span class="n">x</span><span class="p">,</span> <span class="n">deduct</span> <span class="o">=</span> <span class="mi">375</span><span class="p">:</span> <span class="n">t</span><span class="p">(</span><span class="n">x</span><span class="p">,</span><span class="n">deduct</span><span class="p">))</span>
+    <span class="n">x_750</span> <span class="o">=</span> <span class="n">vector_expenditures</span><span class="p">(</span><span class="n">zeta</span><span class="p">,</span><span class="n">z_bar</span><span class="p">,</span><span class="n">alpha</span><span class="p">,</span><span class="k">lambda</span> <span class="n">x</span><span class="p">,</span> <span class="n">deduct</span> <span class="o">=</span> <span class="mi">750</span><span class="p">:</span> <span class="n">t</span><span class="p">(</span><span class="n">x</span><span class="p">,</span><span class="n">deduct</span><span class="p">))</span>
+    <span class="k">return</span> <span class="p">(</span><span class="nb">sum</span><span class="p">(</span><span class="n">x_750</span><span class="p">)</span><span class="o">-</span><span class="nb">sum</span><span class="p">(</span><span class="n">x_375</span><span class="p">))</span><span class="o">/</span><span class="nb">sum</span><span class="p">(</span><span class="n">x_375</span><span class="p">)</span>
+</pre></div>
+
+</div>
+</div>
+</div>
+
+</div>
+<div class="cell border-box-sizing code_cell rendered">
+<div class="input">
+<div class="prompt input_prompt">
+In&nbsp;[20]:
+</div>
+<div class="inner_cell">
+    <div class="input_area">
+<div class="highlight"><pre><span class="k">print</span> <span class="s">&quot;percentage change with gamma = 0.7 equals: &quot;</span><span class="p">,</span> <span class="n">result</span><span class="p">(</span><span class="mf">0.7</span><span class="p">)</span>
+<span class="k">print</span> <span class="s">&quot;percentage change with gamma = 0.9 equals: &quot;</span><span class="p">,</span> <span class="n">result</span><span class="p">(</span><span class="mf">0.9</span><span class="p">)</span>
+</pre></div>
+
+</div>
+</div>
+</div>
+
+<div class="output_wrapper">
+<div class="output">
+
+
+<div class="output_area"><div class="prompt"></div>
+<div class="output_subarea output_stream output_stdout output_text">
+<pre>
+percentage change with gamma = 0.7 equals:  -----------------------------------------------------
+solver: de   problem: unnamed
+ iter    objFunVal   
+    0  7.096e+08 
+   10  4.119e+07 
+   20  4.096e+07 
+   30  4.095e+07 
+   40  4.094e+07 
+   50  4.094e+07 
+   60  4.093e+07 
+   70  4.093e+07 
+   76  4.093e+07 
+istop: 11(Non-Success Number &gt; maxNonSuccess = 15)
+Solver:   Time Elapsed = 162.85 	CPU Time Elapsed = 163.772382
+objFunValue: 40934205 (feasible, MaxResidual = 0)
+-0.0851295743819
+percentage change with gamma = 0.9 equals:  -----------------------------------------------------
+solver: de   problem: unnamed
+ iter    objFunVal   
+    0  6.976e+08 
+   10  4.194e+07 
+   20  4.100e+07 
+   30  4.096e+07 
+   40  4.094e+07 
+   50  4.094e+07 
+   60  4.093e+07 
+   70  4.093e+07 
+   80  4.093e+07 
+   90  4.093e+07 
+  100  4.093e+07 
+  110  4.093e+07 
+  120  4.093e+07 
+  130  4.093e+07 
+  140  4.093e+07 
+  150  4.093e+07 
+  160  4.093e+07 
+  170  4.093e+07 
+  180  4.093e+07 
+  190  4.093e+07 
+  196  4.093e+07 
+istop: 11(Non-Success Number &gt; maxNonSuccess = 15)
+Solver:   Time Elapsed = 428.14 	CPU Time Elapsed = 430.440132
+objFunValue: 40933583 (feasible, MaxResidual = 3.99988e-07)
+0.0
+
+</pre>
+</div>
+</div>
+
+</div>
+</div>
+
+</div>
+<div class="cell border-box-sizing text_cell rendered">
+<div class="prompt input_prompt">
+</div>
+<div class="inner_cell">
+<div class="text_cell_render border-box-sizing rendered_html">
+<p>With $\gamma = 0.7$, the elasticity equals $E = -0.3$. That is, agents are a lot more elastic with respect to the price of health care. In this case, increasing the deductible from 375 to 750, leads to an 8% reduction in health care costs.</p>
+<p>On the other hand, with $\gamma = 0.9$, we have rather inelastic demand with $E = -0.1$. Indeed, in this case, changing the deductible does not change total expenditure at all: $x_{750}-x_{375} =0$.</p>
+<p>Hence, the results are very sensitive to the value of $\gamma$. More research is needed to find the correct value for $\gamma$ for the Netherlands in 2015.</p>
+</div>
+</div>
 </div>
 <div class="cell border-box-sizing code_cell rendered">
 <div class="input">
