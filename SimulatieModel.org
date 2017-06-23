@@ -1,0 +1,586 @@
+* Simulatie model
+
+Things to keep in mind for the model:
+
+ - ophogen van uitkomsten naar jaren 2018, 2019 met hogere totale uitgaven
+ - interactie pakket veranderingen
+ - effect op totale zorguitgaven en eigen betalingen
+ - eerste stap:
+    - overzicht wat we willen
+    - model schets
+    - beschrijven statistieken; M/V, leeftijd
+
+
+* First sketch
+
+| year       | 2008 | 2009 | 2010 | 2011 | 2012 | 2013 |
+|------------+------+------+------+------+------+------|
+| deductible |  150 |  155 |  165 |  170 |  220 |  350 |
+
+An important consideration of any copayment in health care is whether or not an
+individual is at the margin effected by the copayment. To illustrate, if you
+know that your health care costs will exceed a 1000 euros, a change of
+deductible from 150 to 155 euro is unlikely to affect you.
+
+To capture this effect, we would like to know who is "at the margin" for a
+policy measure. That is, we want to keep track of the distribution of
+expenditures in the population. To do this, we define a set of bins to capture
+health care expenditure.
+
+** Bins
+
+We define as healthcare expenditure, all expenditure under the mandatory
+deductible. We start by only considering people without a voluntary deductible.
+
+We define the bins as follows. Pool all data for the 6 years 2008-2013. Take out
+observations with zero expenditure in a year. These go into the 0-bin. Split the
+remaining observations into $n$ expenditure bins such that each bin has the same
+number of observations. If we choose $n=100$, we have expenditure percentiles
+(conditional on positive expenditure).
+
+Then we can add variables for each individual and each year of the bin in which
+the observation is. Then we can estimate for an individual $i$ who was in bin
+$j_{-1}$ in $t-1$, the probability of being in bin $j$ in year $t$:
+\begin{equation} \label{eq:1}
+Prob(i \in j_t|j_{-1}) = \alpha_t + \alpha_i + \alpha_{j_{-1}} + \psi_{j_{-1}} d_{it}
+\end{equation}
+where $\alpha_t$ denotes the time fixed effect, $\alpha_i$ individual fixed
+effect, $\alpha_{j_{-1}}$ the bin (of the preceding year) fixed effect and
+$\psi_{j_{-1}}$ captures the effect of the deductible on the transition
+probabilities.
+
+Remark: given that we would guess that the deductible reduces health care
+expenditure, it is perhaps better to estimate the cumulative distribution rather
+than individual probabilities. To illustrate, in the model above, if $\psi > 0$,
+the probability of ending up $j$ increases --compared to a base category-- with
+deductible $d$ irrespective of whether $j$ is higher or lower than $j_{-1}$. Is
+it possible to estimate $Prob(i \leq j_t | j_{-1})$? Then we expect that $\psi >
+0$: an increase in $d$ makes it more likely that you end up in bin $j$ or lower.
+This seems possible, see for instance [[https://onlinecourses.science.psu.edu/stat504/node/176][this link]]; but I have never used it.
+
+Once we can estimate an equation like the one above for all the data, we can
+re-estimate the equation for certain groups: male vs female, age-cohorts,
+chronic illness etc.
+
+** Theory
+
+A first simple theoretical framework could be the following. Assume that people
+can decide whether to accept the treatment "in their bin" or choose no
+treatment. That is, we assume that people cannot reduce their treatment at the
+margin. Each patient is offered one treatment only (per year) and decides
+whether to accept this treatment or not. Put differently, a series of treatments
+is offered to a patient as an indivisble good. Note that we can test this assumption
+in the data (and it will probably not hold).
+
+The figure below plots costs $c$ of treatment vs values $v$ of treatments. Each
+treatment is a point in this figure; a combination of $c$ and $v$.
+
+#+BEGIN_SRC python
+import matplotlib.pyplot as plt
+import numpy as np
+
+def deductible(c,d):
+   return min(c,d)
+
+range_c = np.arange(0,350,0.1)
+range_v170 = [deductible(c,170) for c in range_c]
+range_v220 = [deductible(c,220) for c in range_c]
+
+plt.plot(range_c,range_v220,'-', color = 'r', linewidth = 2)
+plt.plot(range_c,range_v170,'-', color = 'b', linewidth = 2)
+plt.fill_between(range_c, range_v170, range_v220, facecolor='yellow')
+plt.xlabel('cost')
+plt.ylabel('Value')
+plt.savefig('deduct.png')
+#+END_SRC
+
+
+[[./deduct.png]]
+
+
+Hence, as the deductible increases --say, from 170 (blue line) to 220 (red line)
+as in the figure above-- people being offered a treatment in the yellow area
+will decide to drop the treatment. Under the high deductible, the value $v$ of
+these treatments is less than the cost to the patient (while it was the other
+way around with the low deductible)
+
+This is the expenditure reducing effect of an
+increase in the deductible. The elasticity of this increase in the deductible is
+determined by the probability mass over this area.
+
+When you expect that the effect of a change in the deductible is smaller for
+high cost treatments than for low cost treatments, you assume that the mass of
+treatments with value between $[170,220]$ is higher for low cost treatments.
+
+
+* What equation do we want to estimate?
+
+Let $a$ denote the agent. Consider the case where $a$ is in bin $i$ in this
+period $t$ and was in bin $j$ in the previous period $t-1$. Then we could
+estimate the following equation:
+
+\begin{equation}
+Prob(a \text{ in } i \text{ in } t|a \text{ in } j \text{ in } t-1) = \alpha_t + \alpha_{ij} + \beta_i d_t T_{at}
+\end{equation}
+
+In words, the probability that $a$ is in bin $i$ in period $t$, conditional on
+being in $j$ in $t-1$ is determined by a time effect $\alpha_t$. Question:
+should the time effect depend on $i$ as well? Does it simply drop out now?
+
+It depends on markov probabilities $\alpha_{ij}$.
+
+And it depends on the deductible in period $t$, $d_t$, for agents that are older
+than 18 (i.e. have $T_{at} =1$; while $T_{at}=0$ for people under 18).
+
+It seems natural that $\beta_i$ depends on $i$: for high $i$, one would expect
+the probability of ending up in this bin to fall with the level of the
+deductible while for low $i$ bins, this probability increases.
+
+Whether or not the probability increases with the size of the deductible may
+depend on whether the bin lies (just) above or below the deductible. As the
+deductible changes over time, do we need to work with $\beta_{it}$ for bins $i$
+in between $d_{2008}$ and $d_{2013}$?
+
+
+* Markov matrices
+
+Below are the Markov transition matrices as calculated by Minke. The column indicates the bin an agent was in the previous year, $t-1$ and the row indicates the bin he moves to at time $t$.
+We plot for each year, the probability that someone moves to a certain bin $t$ conditional on the bin he was in at $t-1$.
+
+The bins are defined as follows:
+
+|                  | bin 0 | bin 1 |  bin 2 |  bin 3 |   bin 4 |      bin 5 |
+|------------------+-------+-------+--------+--------+---------+------------|
+| max. expenditure |     0 | 88.61 | 308.18 | 850.88 | 2514.43 | 2253642.00 |
+
+That is, people with 0 expenditure are in bin 0; people with expenditure in $\langle 0,88.61]$ are in bin 1 etc.
+
+
+#+tblname: data_2008_2009
+|          |      |      |      | bin 2008 |      |      |
+| bin 2009 |    0 |    1 |    2 |        3 |    4 |    5 |
+|----------+------+------+------+----------+------+------|
+|        0 | 0.43 | 0.16 | 0.07 |     0.05 | 0.03 | 0.02 |
+|        1 | 0.22 | 0.36 | 0.21 |     0.12 | 0.06 | 0.04 |
+|        2 | 0.13 | 0.22 | 0.34 |     0.21 | 0.11 | 0.06 |
+|        3 | 0.10 | 0.13 | 0.20 |     0.32 | 0.21 | 0.10 |
+|        4 | 0.07 | 0.07 | 0.11 |     0.19 | 0.37 | 0.23 |
+|        5 | 0.05 | 0.05 | 0.06 |     0.11 | 0.22 | 0.56 |
+
+#+tblname: data_2009_2010
+|          |      |      |      | bin 2009 |      |      |
+| bin 2010 |    0 |    1 |    2 |        3 |    4 |    5 |
+|----------+------+------+------+----------+------+------|
+|        0 | 0.47 | 0.16 | 0.08 |     0.06 | 0.04 | 0.03 |
+|        1 | 0.22 | 0.36 | 0.20 |     0.12 | 0.06 | 0.04 |
+|        2 | 0.12 | 0.22 | 0.34 |     0.21 | 0.11 | 0.06 |
+|        3 | 0.09 | 0.13 | 0.20 |     0.31 | 0.20 | 0.10 |
+|        4 | 0.06 | 0.07 | 0.11 |     0.19 | 0.37 | 0.23 |
+|        5 | 0.04 | 0.05 | 0.06 |     0.11 | 0.22 | 0.55 |
+
+#+tblname: data_2010_2011
+|          |      |      |      | bin 2010 |      |      |
+| bin 2011 |    0 |    1 |    2 |        3 |    4 |    5 |
+|----------+------+------+------+----------+------+------|
+|        0 | 0.45 | 0.17 | 0.09 |     0.06 | 0.04 | 0.02 |
+|        1 | 0.22 | 0.37 | 0.21 |     0.12 | 0.07 | 0.04 |
+|        2 | 0.12 | 0.22 | 0.33 |     0.21 | 0.11 | 0.05 |
+|        3 | 0.10 | 0.13 | 0.20 |     0.31 | 0.20 | 0.10 |
+|        4 | 0.06 | 0.08 | 0.11 |     0.19 | 0.36 | 0.23 |
+|        5 | 0.05 | 0.05 | 0.06 |     0.11 | 0.22 | 0.56 |
+
+#+tblname: data_2011_2012
+|          |      |      |      | bin 2011 |      |      |
+| bin 2012 |    0 |    1 |    2 |        3 |    4 |    5 |
+|----------+------+------+------+----------+------+------|
+|        0 | 0.46 | 0.17 | 0.09 |     0.06 | 0.04 | 0.02 |
+|        1 | 0.22 | 0.37 | 0.21 |     0.12 | 0.07 | 0.04 |
+|        2 | 0.12 | 0.21 | 0.33 |     0.21 | 0.11 | 0.05 |
+|        3 | 0.09 | 0.13 | 0.20 |     0.31 | 0.20 | 0.10 |
+|        4 | 0.06 | 0.08 | 0.11 |     0.19 | 0.36 | 0.23 |
+|        5 | 0.05 | 0.05 | 0.07 |     0.11 | 0.22 | 0.56 |
+
+#+tblname: data_2012_2013
+|          |      |      |      | bin 2012 |      |      |
+| bin 2013 |    0 |    1 |    2 |        3 |    4 |    5 |
+|----------+------+------+------+----------+------+------|
+|        0 | 0.47 | 0.17 | 0.08 |     0.07 | 0.04 | 0.02 |
+|        1 | 0.22 | 0.38 | 0.21 |     0.13 | 0.07 | 0.04 |
+|        2 | 0.11 | 0.21 | 0.33 |     0.21 | 0.11 | 0.05 |
+|        3 | 0.09 | 0.13 | 0.20 |     0.30 | 0.20 | 0.10 |
+|        4 | 0.06 | 0.08 | 0.11 |     0.19 | 0.35 | 0.23 |
+|        5 | 0.04 | 0.05 | 0.07 |     0.11 | 0.22 | 0.55 |
+
+
+
+
+We import some libraries.
+
+#+NAME: earth-mississippi-carbon-sixteen
+#+BEGIN_SRC ipython :session :results output drawer
+import pandas as pd
+import numpy as np
+%matplotlib inline
+#+END_SRC
+
+We plot the probability distributions over the bins, for each year (i.e. plots for 2009-2013) conditional on the bin you were in last year (line color in the plot; e.g. blue if you come out of bin 0; orange if you come out of bin 1 etc.).
+
+[For the org-mode "fans" among us: note in the org file that we read into python the org-tables above with the syntax `:var data=name of table above`]
+
+#+NAME: one-massachusetts-twenty-triple
+#+BEGIN_SRC ipython :session :results output org drawer :var data8=data_2008_2009 :var data9=data_2009_2010 :var data10=data_2010_2011 :var data11=data_2011_2012 :var data12=data_2012_2013
+#print(np.array(data)[2:,1:])
+
+datasets = [data8, data9, data10, data11, data12]
+year_t = ['2009', '2010', '2011', '2012', '2013']
+year_previous = ['2008', '2009', '2010', '2011', '2012']
+dframes = {}
+for i in np.arange(5):
+    data = datasets[i]
+    dframes[i] = pd.DataFrame(np.array(data)[2:,1:].astype(float), columns = [year_previous[i]+ ' bin_0',year_previous[i]+  ' bin_1', year_previous[i]+ ' bin_2', year_previous[i]+ ' bin_3', year_previous[i]+ ' bin_4', year_previous[i]+ ' bin_5'])
+    ax = dframes[i].plot(title = 't =' + year_t[i])
+    ax.set_xlabel(year_t[i] + " bin")
+    ax.set_ylabel("prob. to be in " + year_t[i] + " bin")
+
+#+END_SRC
+
+#+RESULTS: one-massachusetts-twenty-triple
+:RESULTS:
+<matplotlib.figure.Figure at 0x10f91c278>
+[[file:ipython-inline-images/ob-ipython-83ec6d055fbe27c7c7d29e4c47fb9112.png]]
+<matplotlib.figure.Figure at 0x111ec02e8>
+[[file:ipython-inline-images/ob-ipython-a124a0fa376de155a83d81ed60f04194.png]]
+<matplotlib.figure.Figure at 0x111fa9358>
+[[file:ipython-inline-images/ob-ipython-fc74fc08b9d0ddebaa8cdeeb46a4347c.png]]
+<matplotlib.figure.Figure at 0x1120237b8>
+[[file:ipython-inline-images/ob-ipython-00309bb3192340659aa9727531f33a90.png]]
+<matplotlib.figure.Figure at 0x1120aae10>
+[[file:ipython-inline-images/ob-ipython-cd6361eeeed13360d87cf0d12c672a76.png]]
+:END:
+
+
+As the figures show, you are most likely to stay in the same bin at $t$ that you were in at $t-1$. This persistence is especially high in the highest cost bin (5).
+Persistence is lowest when you are in bin 3 (red line has lowest max).
+
+Further, the graphs look pretty stable over time.
+
+A disadvantage of this stability is that the deductible seems to have little effect on the Markov probabilities. However, as the plots below show there is an upward sloping relation between the level of the deductible and the probability that expenditure is very low (up till bin 1) and when it is low (up till bin 2).
+
+#+NAME: sodium-charlie-zebra-gee
+#+BEGIN_SRC ipython :session :results output org drawer
+datasets = [data8, data9, data10, data11, data12]
+year_t = [2009, 2010, 2011, 2012, 2013]
+deduct = {2008: 150, 2009 : 155, 2010 : 165, 2011: 170, 2012: 220, 2013: 350}
+
+low_expenditure = []
+
+for i in np.arange(5):
+    dframes[i]['mean_prob'] = dframes[i].mean(axis=1)
+    low_expenditure.append([year_t[i], deduct[year_t[i]], dframes[i]['mean_prob'][0] + dframes[i]['mean_prob'][1], dframes[i]['mean_prob'][0] + dframes[i]['mean_prob'][1] + dframes[i]['mean_prob'][2]])
+
+labels = ['year', 'deduct', 'very_low', 'low' ]
+
+df_low = pd.DataFrame.from_records(low_expenditure, columns=labels)
+
+ax = df_low.plot(kind='scatter', x='deduct',y='very_low')
+ax = df_low.plot(kind='scatter', x='deduct',y='low')
+
+#+END_SRC
+
+#+RESULTS: sodium-charlie-zebra-gee
+:RESULTS:
+<matplotlib.figure.Figure at 0x112a779b0>
+[[file:ipython-inline-images/ob-ipython-91d085cd43c09b956fdf28dea27dd57b.png]]
+<matplotlib.figure.Figure at 0x112a77048>
+[[file:ipython-inline-images/ob-ipython-76a38ed4a8fc8f67771afe18b97a179e.png]]
+:END:
+
+Hence for "very low" expenditures (bins 0 and 1) and for "low expenditure" (bins 0, 1 and 2), we see that the probability of ending up with such (low) expenditure increases with the deductible level.
+
+The following block runs this for every bin separately. This shows the following. The probability of ending up in bin 0 or in bin 1 is increasing in the deductible. As probabilities add up to 1, we see that for higher bins, the probability of ending up there actually falls with the deduct.
+
+
+#+NAME: mirror-harry-grey-cold
+#+BEGIN_SRC ipython :session :results output org drawer
+
+
+expenditure = []
+
+for i in np.arange(5):
+    dframes[i]['mean_prob'] = dframes[i].mean(axis=1)
+    expenditure.append([year_t[i], deduct[year_t[i]], dframes[i]['mean_prob'][0], dframes[i]['mean_prob'][1], dframes[i]['mean_prob'][2], dframes[i]['mean_prob'][3], dframes[i]['mean_prob'][4], dframes[i]['mean_prob'][5]])
+
+labels_expenditure = ['year', 'deduct', 'mean probability that bin is 0', 'mean probability that bin is 1', 'mean probability that bin is 2', 'mean probability that bin is 3', 'mean probability that bin is 4', 'mean probability that bin is 5' ]
+
+df_expenditure = pd.DataFrame.from_records(expenditure, columns=labels_expenditure)
+
+ax = df_expenditure.plot(kind='scatter', x='deduct',y='mean probability that bin is 0')
+ax = df_expenditure.plot(kind='scatter', x='deduct',y='mean probability that bin is 1')
+ax = df_expenditure.plot(kind='scatter', x='deduct',y='mean probability that bin is 2')
+ax = df_expenditure.plot(kind='scatter', x='deduct',y='mean probability that bin is 3')
+ax = df_expenditure.plot(kind='scatter', x='deduct',y='mean probability that bin is 4')
+ax = df_expenditure.plot(kind='scatter', x='deduct',y='mean probability that bin is 5')
+
+#+END_SRC
+
+#+RESULTS: mirror-harry-grey-cold
+:RESULTS:
+<matplotlib.figure.Figure at 0x111f5fa20>
+[[file:ipython-inline-images/ob-ipython-f66ea0ef4f65eba24d9d7c60f8f50424.png]]
+<matplotlib.figure.Figure at 0x111f5f828>
+[[file:ipython-inline-images/ob-ipython-cdcfbfc3fac78acba58b22a963bcf99f.png]]
+<matplotlib.figure.Figure at 0x111ed67b8>
+[[file:ipython-inline-images/ob-ipython-5d5d7ab3a9089abf774ad46749f72801.png]]
+<matplotlib.figure.Figure at 0x112009c18>
+[[file:ipython-inline-images/ob-ipython-1a27a80ec7d0c4333487418e580d9f76.png]]
+<matplotlib.figure.Figure at 0x1127e9668>
+[[file:ipython-inline-images/ob-ipython-fbb2b8bd5a6d6525e01ecdd8f9cd9b71.png]]
+<matplotlib.figure.Figure at 0x112e6d828>
+[[file:ipython-inline-images/ob-ipython-14afa80357e6abfaa32b53f8f35bebaa.png]]
+:END:
+
+
+If we find this confusing that some probabilities increase and others decrease with the deductible, we can also estimate the effects on the cumulative probabilities: $F(i) = prob(bin \leq i)$.
+
++ TODO: We can also plot these probabilities conditional on your bin in $t-1$. Intuitively, it may be the case that if last year you were in a low bin, the probability that you are in a low bin this year increases with the deduct. But if last year you were in a high bin, the probability of being in a low bin hardly changes with the deduct (as you were expecting costs way above the deduct. this year as well).
+
+
+
+
+* Selection: 15-21 year olds, no mental and dental expenditures, 18 year olds or persons who choose a voluntary deductible at one point
+
+
+#+tblname: data_2008_2009_selection
+|          |      |      |      | bin 2008 |      |      |
+| bin 2009 |    0 |    1 |    2 |        3 |    4 |    5 |
+|----------+------+------+------+----------+------+------|
+|        0 | 0.46 | 0.27 | 0.14 |     0.14 | 0.12 | 0.07 |
+|        1 | 0.15 | 0.21 | 0.15 |     0.11 | 0.09 | 0.05 |
+|        2 | 0.12 | 0.19 | 0.25 |     0.18 | 0.13 | 0.08 |
+|        3 | 0.12 | 0.15 | 0.21 |     0.24 | 0.20 | 0.13 |
+|        4 | 0.09 | 0.12 | 0.15 |     0.20 | 0.26 | 0.20 |
+|        5 | 0.06 | 0.07 | 0.10 |     0.14 | 0.20 | 0.46 |
+
+#+tblname: data_2009_2010_selection
+|          |      |      |      | bin 2009 |      |      |
+| bin 2010 |    0 |    1 |    2 |        3 |    4 |    5 |
+|----------+------+------+------+----------+------+------|
+|        0 | 0.48 | 0.26 | 0.14 |     0.15 | 0.13 | 0.08 |
+|        1 | 0.15 | 0.21 | 0.15 |     0.11 | 0.08 | 0.05 |
+|        2 | 0.11 | 0.20 | 0.26 |     0.18 | 0.13 | 0.08 |
+|        3 | 0.11 | 0.14 | 0.20 |     0.23 | 0.20 | 0.13 |
+|        4 | 0.09 | 0.11 | 0.15 |     0.19 | 0.25 | 0.21 |
+|        5 | 0.06 | 0.07 | 0.10 |     0.14 | 0.20 | 0.44 |
+
+
+#+tblname: data_2010_2011_selection
+|          |      |      |      | bin 2010 |      |      |
+| bin 2011 |    0 |    1 |    2 |        3 |    4 |    5 |
+|----------+------+------+------+----------+------+------|
+|        0 | 0.48 | 0.25 | 0.13 |     0.14 | 0.12 | 0.08 |
+|        1 | 0.15 | 0.23 | 0.17 |     0.12 | 0.09 | 0.06 |
+|        2 | 0.11 | 0.19 | 0.26 |     0.19 | 0.14 | 0.09 |
+|        3 | 0.11 | 0.14 | 0.19 |     0.23 | 0.20 | 0.14 |
+|        4 | 0.09 | 0.11 | 0.15 |     0.19 | 0.25 | 0.21 |
+|        5 | 0.07 | 0.08 | 0.10 |     0.14 | 0.20 | 0.43 |
+
+#+tblname: data_2011_2012_selection
+|          |      |      |      | bin 2011 |      |      |
+| bin 2012 |    0 |    1 |    2 |        3 |    4 |    5 |
+|----------+------+------+------+----------+------+------|
+|        0 | 0.49 | 0.23 | 0.13 |     0.14 | 0.12 | 0.08 |
+|        1 | 0.15 | 0.25 | 0.17 |     0.12 | 0.10 | 0.06 |
+|        2 | 0.11 | 0.19 | 0.27 |     0.19 | 0.14 | 0.09 |
+|        3 | 0.10 | 0.13 | 0.19 |     0.22 | 0.19 | 0.13 |
+|        4 | 0.09 | 0.11 | 0.14 |     0.19 | 0.24 | 0.21 |
+|        5 | 0.07 | 0.08 | 0.10 |     0.14 | 0.20 | 0.43 |
+
+#+tblname: data_2012_2013_selection
+|          |      |      |      | bin 2012 |      |      |
+| bin 2013 |    0 |    1 |    2 |        3 |    4 |    5 |
+|----------+------+------+------+----------+------+------|
+|        0 | 0.50 | 0.23 | 0.13 |     0.13 | 0.12 | 0.08 |
+|        1 | 0.15 | 0.27 | 0.18 |     0.13 | 0.11 | 0.07 |
+|        2 | 0.10 | 0.19 | 0.26 |     0.19 | 0.14 | 0.09 |
+|        3 | 0.09 | 0.13 | 0.18 |     0.22 | 0.19 | 0.14 |
+|        4 | 0.09 | 0.11 | 0.14 |     0.19 | 0.24 | 0.20 |
+|        5 | 0.07 | 0.08 | 0.10 |     0.14 | 0.20 | 0.42 |
+
+#+NAME: seventeen-lion-utah-quebec
+#+BEGIN_SRC ipython :session :results output org drawer :var data8_selection=data_2008_2009_selection :var data9_selection=data_2009_2010_selection :var data10_selection=data_2010_2011_selection :var data11_selection=data_2011_2012_selection :var data12_selection=data_2012_2013_selection
+
+datasets_selection = [data8_selection, data9_selection, data10_selection, data11_selection, data12_selection]
+year_t = ['2009', '2010', '2011', '2012', '2013']
+year_previous = ['2008', '2009', '2010', '2011', '2012']
+
+dframes_selection = {}
+for i in np.arange(5):
+    data_selection = datasets_selection[i]
+    dframes_selection[i] = pd.DataFrame(np.array(data_selection)[2:,1:].astype(float), columns = [year_previous[i]+ ' bin_0',year_previous[i]+  ' bin_1', year_previous[i]+ ' bin_2', year_previous[i]+ ' bin_3', year_previous[i]+ ' bin_4', year_previous[i]+ ' bin_5'])
+    ax_selection = dframes_selection[i].plot(title = 't =' + year_t[i])
+    ax_selection.set_xlabel(year_t[i] + " bin")
+    ax_selection.set_ylabel("prob. to be in " + year_t[i] + " bin")
+
+#+END_SRC
+
+error hier werd veroorzaakt door 0;10 in een van de matrices hierboven (kijk in de vorige versie van deze file)
+
+
+#+RESULTS: seventeen-lion-utah-quebec
+:RESULTS:
+<matplotlib.figure.Figure at 0x112e63438>
+[[file:ipython-inline-images/ob-ipython-11bb44ba07af436f784aed95950c2281.png]]
+<matplotlib.figure.Figure at 0x1126d4358>
+[[file:ipython-inline-images/ob-ipython-6d5c9c9a739949729a0e79436ace7df6.png]]
+<matplotlib.figure.Figure at 0x1126cb2e8>
+[[file:ipython-inline-images/ob-ipython-e55b3f7697d7427880d493c07493173a.png]]
+<matplotlib.figure.Figure at 0x11279d5c0>
+[[file:ipython-inline-images/ob-ipython-0bbb9d1ba39a0f0c8b7b15accb589ee5.png]]
+<matplotlib.figure.Figure at 0x11208f9e8>
+[[file:ipython-inline-images/ob-ipython-12fb68e5016930a9d07d38243ea27976.png]]
+:END:
+
+hieronder was ook een error (key-error). Die is veroorzaakt door mij omdat ik twee verschillende year_t lists gebruik hierboven: een met integers [2009, 2010, ...] en een met strings ['2008', '2009',...]
+
+#+NAME: skylark-cat-missouri-six
+#+BEGIN_SRC ipython :session :results output org drawer
+deduct = {2008: 150, 2009 : 155, 2010 : 165, 2011: 170, 2012: 220, 2013: 350}
+year_t = [2009, 2010, 2011, 2012, 2013]
+
+low_expenditure_selection = []
+
+for i in np.arange(5):
+    dframes_selection[i]['mean_prob'] = dframes_selection[i].mean(axis=1)
+    low_expenditure_selection.append([year_t[i], deduct[year_t[i]], dframes_selection[i]['mean_prob'][0] + dframes_selection[i]['mean_prob'][1], dframes_selection[i]['mean_prob'][0] + dframes_selection[i]['mean_prob'][1] + dframes_selection[i]['mean_prob'][2]])
+
+
+
+
+labels = ['year', 'deduct', 'very_low', 'low' ]
+
+df_low_selection = pd.DataFrame.from_records(low_expenditure_selection, columns=labels)
+
+ax_selection = df_low_selection.plot(kind='scatter', x='deduct',y='very_low')
+ax_selection = df_low_selection.plot(kind='scatter', x='deduct',y='low')
+
+#+END_SRC
+
+#+RESULTS: skylark-cat-missouri-six
+:RESULTS:
+<matplotlib.figure.Figure at 0x112a77470>
+[[file:ipython-inline-images/ob-ipython-f610aacbc7cfc0fcc2bc346a0a46a111.png]]
+<matplotlib.figure.Figure at 0x1128749b0>
+[[file:ipython-inline-images/ob-ipython-efd3195ca95641f17198f3927fe4225e.png]]
+:END:
+
+
+
+* Policy changes
+
+** List of policy and basic package changes between 2006 and 2013
+
+#+LaTeX: \resizebox{\textwidth}{!}{
+| year | policy change                                                                                                           |
+|------+-------------------------------------------------------------------------------------------------------------------------|
+|------+-------------------------------------------------------------------------------------------------------------------------|
+| 2006 | Introduction of regulated competition `Health Insurance Act' (Zvw)                                                      |
+| 2006 | Agreement to curb pharmaceutical costs (extension of `preferentiebeleid geneesmiddelen')                                |
+| 2006 | Introduction of rebate of 255 euros                                                                                     |
+| 2007 | Abdominoplasty (for severe cases) is included in basic package                                                          |
+| 2007 | Psychotherapy (for severe cases) is included in basic package                                                           |
+| 2007 | First IVF treatment (of maximum 3) is included in basic package                                                         |
+| 2008 | Introduction of mental health care in `Health Insurance Act' (Zvw)                                                      |
+| 2008 | Contraceptives are included in basic package                                                                            |
+| 2008 | Limited dental care for 18 up to 22 year olds included in basic package. The deductible does not apply for dental care. |
+| 2008 | 5 hours of extra maternity care are included in basic package                                                           |
+| 2008 | The first 8 sessions of psychological counseling are included in basic package plus co-payment of 10 euros per session  |
+| 2008 | Introduction deductible of 150 euros}                                                                                   |
+| 2009 | Chairs to help a person stand up (`sta op stoelen'), strollers and anti-allergen matrass covers removed                 |
+| 2009 | Reimbursement for statins limited                                                                                       |
+| 2009 | Sleeping pills and tranquilizers removed basic package                                                                  |
+| 2009 | Severe dyslexia diagnostics and treatment for 6 and 7 year olds included in basic package                               |
+| 2009 | Increase of deductible to 155 euros}                                                                                    |
+| 2010 | Introduction of diagnosis treatment combinations (DBCs)                                                                 |
+| 2010 | Acetylcysteine removed from basic package                                                                               |
+| 2010 | Lowering of registration fee for general practitioner                                                                   |
+| 2010 | Severe dyslexia diagnostics and treatment for 9 year olds included in basic package                                     |
+| 2010 | More precise requirements about reimbursement of IVF treatments                                                         |
+| 2010 | Maximal reimbursement of wigs increases from 294 euros to 374 euros                                                     |
+| 2010 | MRA machine is reimbursed in specific cases                                                                             |
+| 2010 | Reimbursement of devices to ease breathing in specific cases included                                                   |
+| 2010 | Anti-snoring device (`snurkbeugel') included in basic package for specific cases                                        |
+| 2010 | Increase of deductible to 165 euros                                                                                     |
+| 2011 | Contraceptives for 21 year olds or more removed from the basic benefit package                                          |
+| 2011 | Dental care for 18 up to 21 year olds removed                                                                           |
+| 2011 | Stricter indication for anti-depressants                                                                                |
+| 2011 | Physiotherapy limited: patient must pay first 12 sessions himself (it used to be the first 8 sessions)                  |
+| 2011 | Physical therapy for urine incontinence included in basic package                                                       |
+| 2011 | Uncomplicated dental extraction by dental surgeon removed from basic package                                            |
+| 2011 | Quit smoking treatments included in basic package                                                                       |
+| 2011 | Increase of deductible to 170 euros                                                                                     |
+| 2012 | Additional deductible for specialist mental health care introduced}                                                     |
+| 2012 | Gastricacid blockers removed from basic package                                                                         |
+| 2012 | Physiotherapy (first 20 sessions) removed from basic package                                                            |
+| 2012 | Treatments to quit smoking removed from basic package                                                                   |
+| 2012 | Dietary advice removed from basic package                                                                               |
+| 2012 | Treatment of adjustment disorders (mental health care) removed                                                          |
+| 2012 | Primary psychological care reduced from 8 to 5 sessions                                                                 |
+| 2012 | Increase of deductible to 220 euros                                                                                     |
+| 2013 | Paracetamol-codein combination medication removed                                                                       |
+| 2013 | Co-payment of 25 percent for hearing aids introduced to replay fixed fee of 500 euros                                   |
+| 2013 | Co-payment of 7.50  euros per day for `hotel' costs in hospital or other overnight stay                                 |
+| 2013 | Simple walking aids removed from basic package                                                                          |
+| 2013 | Repositioning helmet for babies removed from basic package                                                              |
+| 2013 | Treatments to quit smoking included                                                                                     |
+| 2013 | Co-payments for specialist mental health care abolished                                                                 |
+| 2013 | IVF treatment for women aged 43 years and over removed from basic package                                               |
+| 2013 | Geriatric rehabilitation care switched from Exceptional Medical Expenses Act (AWBZ) to Health Insurance Act (Zvw)       |
+| 2013 | Increase of the deductible to 350 euros                                                                                 |
+|------+-------------------------------------------------------------------------------------------------------------------------|
+|      |                                                                                                                         |
+#+LaTeX: }
+
+
+Note: This list is an adaptation of Kroneman.
+
+* Data
+
+** Data description
+
+ We have proprietary data for the entire Dutch population from health care insurers:
+   - 17 million persons for 2006-2013
+   - personal characteristics such as age (on December 31st, in a given year), sex, zip code, indicator of chronic disease or chronic use of medication and choice of voluntary deductible
+   - annual total health care costs expenditure per person, and for 21 different types of care (hospital care, GP care, physiotherapy, etc.)
+   - only expenditures for basic insurance package, which is set by the government and the same for all Dutch citizens
+
+** List of health care expenditure categories
+
+| type of costs                                 | apply to deductible or rebate | included in $y_{it}$ |
+|-----------------------------------------------+-------------------------------+----------------------|
+|-----------------------------------------------+-------------------------------+----------------------|
+| GP registration                               |                               |                      |
+| GP visits                                     |                               |                      |
+| other costs of GP care                        |                               |                      |
+| pharmaceutical care                           | X                             | X                    |
+| dental care                                   | X                             |                      |
+| obstetrical care                              |                               |                      |
+| hospital care                                 | X                             | X                    |
+| physiotherapy                                 | X                             | X                    |
+| paramedical care                              | X                             | X                    |
+| medical aids                                  | X                             | X                    |
+| transportation for persons lying down}        | X                             | X                    |
+| transportation for seated persons             | X                             | X                    |
+| maternity care                                |                               |                      |
+| care that is delivered over the Dutch borders | X                             | X                    |
+| primary care support                          |                               |                      |
+| primary mental health care support            |                               |                      |
+| mental health care with (overnight) stay      | X                             |                      |
+| mental health care without (overnight) stay   |                               |                      |
+| - at institutions                             | X                             |                      |
+| - by self-employed providers                  | X                             |                      |
+| other mental health care costs                | X                             |                      |
+| geriatric revalidations                       | X                             | X                    |
+| other costs                                   | X                             | X                    |
+|-----------------------------------------------+-------------------------------+----------------------|
+|                                               |                               |                      |
+Note: Cost categories marked with X in the second column apply to the rebate or deductible. The other cost categories are exempted from these cost-sharing instruments.
